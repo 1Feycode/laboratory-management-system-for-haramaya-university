@@ -1,0 +1,18 @@
+flowchart TD
+    ScheduleCheck[Daily System Schedule Evaluator] --> QueryDue[Query assets Table where<br/>next_calibration_due <= NOW + 30 Days]
+    
+    QueryDue --> FlagCheck{next_calibration_due < NOW?}
+    FlagCheck -- Yes --> SetOverdue[Display Red Banner:<br/>CALIBRATION_OVERDUE]
+    FlagCheck -- No --> SetWarning[Display Amber Warning:<br/>Calibration Due in X Days]
+    
+    SetOverdue & SetWarning --> NotifyTech[Alert Maintenance Engineer & Lab Manager]
+    NotifyTech --> CalibSession[Technician Performs Certified Calibration<br/>Using Traceable Standard Reference]
+    
+    CalibSession --> SubmitLog[Log Calibration Details:<br/>Standard Used, Certificate Ref, Date,<br/>Pass/Fail Flag, Next Due Date]
+    SubmitLog --> PassCheck{Did Instrument Pass?}
+    
+    PassCheck -- Failed --> LockDefective[Asset Condition: DEFECTIVE<br/>Auto-Open Urgent Work Order]
+    
+    PassCheck -- Passed --> UpdateAsset[Update asset.last_calibrated_date<br/>Update asset.next_calibration_due<br/>Clear Overdue Warning Flag]
+    UpdateAsset --> LogAudit[(Write to audit_logs Table<br/>Action: CALIBRATION_LOGGED)]
+    LogAudit --> Finish([Calibration Compliance Verified])

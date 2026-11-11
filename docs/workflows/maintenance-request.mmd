@@ -1,0 +1,29 @@
+flowchart TD
+    Discover[Technician Discovers Malfunction] --> ScanBench[Scan Physical QR Code at Bench]
+    ScanBench --> Passport[Display Digital Asset Passport]
+    Passport --> ClickFault[Click 'Report Fault']
+    
+    ClickFault --> Form[Enter Fault Severity: Low/Med/High/Critical<br/>Failure Category & Symptom Description]
+    Form --> Submit[Submit Ticket]
+    
+    Submit --> LockCheck{Severity Critical?}
+    LockCheck -- Yes --> SetDefective[Asset Condition: DEFECTIVE]
+    LockCheck -- No --> SetMaint[Asset Condition: UNDER_MAINTENANCE]
+    
+    SetDefective & SetMaint --> CreateTicket[(Create Work Order: WO-YYYY-XXXX<br/>Status: OPEN)]
+    CreateTicket --> AlertTechUnit[ULMD Technology Unit Queue Alerted]
+    
+    AlertTechUnit --> AssignTech[Technology Unit Assigns Technician<br/>Status: ASSIGNED]
+    AssignTech --> AcceptTicket[Technician Accepts Ticket<br/>Status: IN_PROGRESS]
+    
+    AcceptTicket --> BenchWork[Technician Executes Bench Diagnostics & Repair]
+    BenchWork --> LogWork[Submit Maintenance Log:<br/>Actions Taken, Parts Used, Labor Hours,<br/>Outcome Condition: OPERATIONAL]
+    LogWork --> TicketResolved[Work Order Status: RESOLVED]
+    
+    TicketResolved --> CustodianVerify{Custodian Lab Manager<br/>Verifies Operation?}
+    CustodianVerify -- Test Fails --> Reopen[Return Ticket to IN_PROGRESS<br/>with Feedback Notes]
+    Reopen --> BenchWork
+    
+    CustodianVerify -- Test Passes --> CloseTicket[Work Order Status: CLOSED<br/>Asset Condition: OPERATIONAL]
+    CloseTicket --> Audit[(Append Immutable Audit Record)]
+    Audit --> Done([Instrument Returned to Active Service])

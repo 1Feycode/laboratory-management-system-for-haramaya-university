@@ -1,0 +1,20 @@
+flowchart TD
+    Init[Origin Lab Manager Initiates Transfer<br/>Selects Asset & Destination Lab] --> CheckCondition{Is Asset Condition<br/>OPERATIONAL?}
+    
+    CheckCondition -- No --> Block[Transfer Blocked:<br/>Asset is Defective or Under Maintenance]
+    
+    CheckCondition -- Yes --> SetPending[Asset State: TRANSFER_PENDING<br/>Transfer State: PENDING_RECEIVER]
+    SetPending --> AlertTarget[Destination Lab Manager Receives Alert]
+    
+    AlertTarget --> TargetInspect{Destination Manager<br/>Inspects & Accepts?}
+    TargetInspect -- Rejects --> RejectTarget[Transfer State: REJECTED<br/>Asset State Restored: OPERATIONAL]
+    
+    TargetInspect -- Accepts --> SetULMDPending[Transfer State: PENDING_ULMD]
+    SetULMDPending --> ULMDAlert[ULMD Directorate Receives Request]
+    
+    ULMDAlert --> ULMDReview{ULMD Directorate<br/>Approves Relocation?}
+    ULMDReview -- Denies --> DenyULMD[Transfer State: REJECTED<br/>Asset Retained by Origin Lab]
+    
+    ULMDReview -- Approves --> Execute[Update asset.laboratory_id & asset.room_id<br/>Transfer State: COMPLETED<br/>Asset State: OPERATIONAL]
+    Execute --> Audit[(Write Immutable Audit Log<br/>Action: TRANSFER_COMPLETED)]
+    Audit --> Finish([Relocation Finalized & Tracked])

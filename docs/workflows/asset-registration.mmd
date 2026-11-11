@@ -1,0 +1,17 @@
+flowchart TD
+    Start([Lab Manager Initiates Registration]) --> InputData[Enter Equipment Specs:<br/>Category, Model, Serial, Manufacturer,<br/>Purchase Date, Commissioning Date, Room]
+    InputData --> PydanticVal{Pydantic Schema Validation}
+    
+    PydanticVal -- Fails --> ShowErr[Display Form Field Errors]
+    ShowErr --> InputData
+    
+    PydanticVal -- Passes --> CheckSerial{Serial + Manufacturer<br/>Already Registered?}
+    CheckSerial -- Duplicate --> Conflict[HTTP 409 Conflict:<br/>Serial Number Exists]
+    Conflict --> InputData
+    
+    CheckSerial -- Unique --> GenCode[Auto-Generate Asset Code:<br/>HU-COLLEGE-DEPT-XXXXX]
+    GenCode --> GenQR[Generate Vector QR Code Payload:<br/>https://labs.haramaya.edu.et/assets/CODE]
+    GenQR --> DBInsert[(Insert into assets Table<br/>Status: OPERATIONAL)]
+    DBInsert --> AuditLog[(Write to audit_logs Table<br/>Action: ASSET_CREATED)]
+    AuditLog --> PrintQR[Display Asset Passport &<br/>Render Printable QR Label]
+    PrintQR --> Finish([Asset Tagged at Laboratory Bench])
