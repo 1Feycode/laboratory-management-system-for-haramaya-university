@@ -1,0 +1,39 @@
+sequenceDiagram
+    autonumber
+    actor Tech as Lab Technician
+    actor Mgr as Lab Manager
+    participant Sys as System / API
+    actor Eng as ULMD Tech Engineer
+    actor Dir as ULMD Supervisor
+
+    Note over Tech, Dir: Corrective Maintenance Workflow
+    Tech->>Sys: Scan QR Code on defective equipment
+    Sys-->>Tech: Display Asset Passport & Quick Actions
+    Tech->>Sys: Submit Fault Report (Severity, Symptoms, Category)
+    Sys->>Sys: Set Asset Condition: NEEDS_MAINTENANCE / DEFECTIVE
+    Sys->>Sys: Create Work Order (WO-YYYY-XXXX)
+    Sys-->>Dir: Notify Open Ticket in Dispatch Queue
+    Dir->>Sys: Assign Work Order to Tech Engineer
+    Sys-->>Eng: Alert Assigned Work Order
+    Eng->>Sys: Accept Ticket (Status: IN_PROGRESS)
+    Eng->>Eng: Perform Diagnostic & Physical Repair in Laboratory
+    Eng->>Sys: Submit Maintenance Log (Actions, Parts, Hours, Outcome)
+    Eng->>Sys: Set Work Order Status: RESOLVED
+    Sys-->>Mgr: Request Verification & Operational Test Run
+    Mgr->>Sys: Confirm Functionality & Sign Off
+    Sys->>Sys: Set Work Order Status: CLOSED
+    Sys->>Sys: Set Asset Condition: OPERATIONAL
+    Sys->>Sys: Append Immutable Audit Record
+
+    Note over Mgr, Dir: Dual-Authorization Transfer Workflow
+    Mgr->>Sys: Initiate Transfer (Asset ID, Target Lab, Justification)
+    Sys->>Sys: Set Transfer Status: PENDING_RECEIVER
+    Sys->>Sys: Set Asset Condition: TRANSFER_PENDING
+    Sys-->>Sys: Alert Destination Lab Manager
+    Sys->>Sys: Destination Manager Inspects & Accepts
+    Sys->>Sys: Set Transfer Status: PENDING_ULMD
+    Dir->>Sys: Review & Approve Relocation
+    Sys->>Sys: Update Asset Foreign Keys (laboratory_id, room_id)
+    Sys->>Sys: Set Transfer Status: COMPLETED
+    Sys->>Sys: Restore Asset Condition: OPERATIONAL
+    Sys->>Sys: Write Location History & Audit Record

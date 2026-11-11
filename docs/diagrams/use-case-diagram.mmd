@@ -1,0 +1,58 @@
+flowchart LR
+    subgraph Actors
+        LT[Lab Technician]
+        LM[Lab Manager]
+        TE[Technology Unit Engineer]
+        UA[ULMD Admin]
+        AU[Auditor]
+    end
+
+    subgraph "Asset Identification & Registration"
+        UC1[Scan QR & View Asset Passport]
+        UC2[Register Durable Asset]
+        UC3[Generate & Print QR Label]
+        UC4[Initiate Custody Transfer]
+        UC5[Approve Custody Transfer]
+    end
+
+    subgraph "Maintenance & Calibration Lifecycle"
+        UC6[Report Equipment Fault]
+        UC7[Assign Work Order]
+        UC8[Log Maintenance & Spare Parts]
+        UC9[Verify & Close Work Order]
+        UC10[Log Certified Calibration]
+        UC11[Track Overdue Calibrations]
+    end
+
+    subgraph "System Administration & Compliance"
+        UC12[Manage Hierarchy & Users]
+        UC13[View Executive Dashboards]
+        UC14[Export Inventory & Audit Trail]
+    end
+
+    LT --> UC1
+    LT --> UC6
+
+    LM --> UC1
+    LM --> UC2
+    LM --> UC3
+    LM --> UC4
+    LM --> UC6
+    LM --> UC9
+
+    TE --> UC1
+    TE --> UC8
+    TE --> UC10
+
+    UA --> UC2
+    UA --> UC5
+    UA --> UC7
+    UA --> UC9
+    UA --> UC11
+    UA --> UC12
+    UA --> UC13
+    UA --> UC14
+
+    AU --> UC1
+    AU --> UC13
+    AU --> UC14

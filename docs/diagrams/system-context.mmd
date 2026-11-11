@@ -1,0 +1,35 @@
+flowchart TD
+    subgraph External Actors
+        LT[Lab Technician / TA]
+        LM[Department Lab Manager]
+        TE[ULMD Technology Unit Engineer]
+        UA[ULMD Directorate Admin]
+        AU[University Compliance Auditor]
+    end
+
+    subgraph "Haramaya University Lab Management System"
+        APP[Web Application / REST API Gateway]
+        DB[(PostgreSQL Relational Database)]
+        QR[Vector QR Code Service]
+        AUTH[JWT Security & RBAC Service]
+        AUDIT[Immutable Audit Service]
+    end
+
+    subgraph External Infrastructure
+        EFMD[EFMD Facilities Support / BMOM]
+        ICT[HU Campus Network & Intranet]
+    end
+
+    LT -->|Scan QR / Submit Fault Ticket| APP
+    LM -->|Register Asset / Initiate Transfer / Sign-off Repair| APP
+    TE -->|Accept Ticket / Log Maintenance & Calibration| APP
+    UA -->|Dispatch Work Orders / Approve Transfers / Master Data| APP
+    AU -->|View Inventory Compliance & Downtime Reports| APP
+
+    APP --> AUTH
+    APP --> QR
+    APP --> DB
+    APP --> AUDIT
+
+    APP -.->|Utility Outage Escalation| EFMD
+    APP -.->|Hosted On| ICT

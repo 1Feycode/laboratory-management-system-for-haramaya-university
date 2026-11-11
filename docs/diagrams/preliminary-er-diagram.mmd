@@ -1,0 +1,85 @@
+erDiagram
+    COLLEGES ||--o{ DEPARTMENTS : contains
+    DEPARTMENTS ||--o{ LABORATORIES : operates
+    LABORATORIES ||--o{ ROOMS : houses
+    DEPARTMENTS ||--o{ USERS : employs
+    ROLES ||--o{ USERS : assigns
+
+    ASSET_CATEGORIES ||--o{ ASSETS : classifies
+    ROOMS ||--o{ ASSETS : locates
+    LABORATORIES ||--o{ ASSETS : stewards
+
+    ASSETS ||--o{ ASSET_TRANSFERS : undergoes
+    LABORATORIES ||--o{ ASSET_TRANSFERS : origin_lab
+    LABORATORIES ||--o{ ASSET_TRANSFERS : target_lab
+
+    ASSETS ||--o{ WORK_ORDERS : issues
+    USERS ||--o{ WORK_ORDERS : reports
+    USERS ||--o{ WORK_ORDERS : assigned_tech
+
+    WORK_ORDERS ||--o{ MAINTENANCE_LOGS : produces
+    USERS ||--o{ MAINTENANCE_LOGS : technician
+
+    ASSETS ||--o{ CALIBRATION_LOGS : undergoes
+    USERS ||--o{ CALIBRATION_LOGS : calibrated_by
+
+    USERS ||--o{ AUDIT_LOGS : triggers
+
+    COLLEGES {
+        uuid id PK
+        varchar name UK
+        varchar code UK
+    }
+
+    DEPARTMENTS {
+        uuid id PK
+        uuid college_id FK
+        varchar name
+        varchar code
+    }
+
+    LABORATORIES {
+        uuid id PK
+        uuid department_id FK
+        varchar name
+        varchar lab_type
+    }
+
+    ROOMS {
+        uuid id PK
+        uuid laboratory_id FK
+        varchar room_number
+        varchar building_name
+    }
+
+    ASSETS {
+        uuid id PK
+        varchar asset_code UK
+        varchar serial_number
+        varchar model_number
+        varchar operational_status
+        date next_calibration_due
+    }
+
+    WORK_ORDERS {
+        uuid id PK
+        varchar ticket_number UK
+        uuid asset_id FK
+        varchar severity
+        varchar status
+    }
+
+    MAINTENANCE_LOGS {
+        uuid id PK
+        uuid work_order_id FK
+        text actions_taken
+        varchar outcome_condition
+    }
+
+    CALIBRATION_LOGS {
+        uuid id PK
+        uuid asset_id FK
+        date calibration_date
+        boolean passed
+        date next_due_date
+    }

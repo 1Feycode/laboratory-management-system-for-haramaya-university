@@ -1,0 +1,167 @@
+erDiagram
+    COLLEGES ||--o{ DEPARTMENTS : contains
+    DEPARTMENTS ||--o{ LABORATORIES : operates
+    LABORATORIES ||--o{ ROOMS : houses
+    DEPARTMENTS ||--o{ USERS : employs
+    ROLES ||--o{ USERS : grants
+
+    ASSET_CATEGORIES ||--o{ ASSETS : classifies
+    ROOMS ||--o{ ASSETS : locates
+    LABORATORIES ||--o{ ASSETS : stewards
+
+    ASSETS ||--o{ ASSET_TRANSFERS : undergoes
+    LABORATORIES ||--o{ ASSET_TRANSFERS : origin_lab
+    LABORATORIES ||--o{ ASSET_TRANSFERS : target_lab
+
+    ASSETS ||--o{ WORK_ORDERS : issues
+    USERS ||--o{ WORK_ORDERS : reports
+    USERS ||--o{ WORK_ORDERS : assigned_tech
+
+    WORK_ORDERS ||--o{ MAINTENANCE_LOGS : produces
+    USERS ||--o{ MAINTENANCE_LOGS : technician
+
+    ASSETS ||--o{ CALIBRATION_LOGS : undergoes
+    USERS ||--o{ CALIBRATION_LOGS : calibrated_by
+
+    USERS ||--o{ AUDIT_LOGS : triggers
+
+    COLLEGES {
+        uuid id PK
+        varchar name UK
+        varchar code UK
+        timestamptz created_at
+    }
+
+    DEPARTMENTS {
+        uuid id PK
+        uuid college_id FK
+        varchar name
+        varchar code
+        timestamptz created_at
+    }
+
+    LABORATORIES {
+        uuid id PK
+        uuid department_id FK
+        varchar name
+        varchar lab_type
+        uuid manager_id FK
+        timestamptz created_at
+    }
+
+    ROOMS {
+        uuid id PK
+        uuid laboratory_id FK
+        varchar room_number
+        varchar building_name
+        timestamptz created_at
+    }
+
+    ROLES {
+        uuid id PK
+        varchar name UK
+        varchar description
+    }
+
+    USERS {
+        uuid id PK
+        varchar email UK
+        varchar hashed_password
+        varchar full_name
+        uuid role_id FK
+        uuid department_id FK
+        boolean is_active
+        timestamptz created_at
+    }
+
+    ASSET_CATEGORIES {
+        uuid id PK
+        varchar name UK
+        boolean requires_calibration
+        int default_calibration_interval_days
+        timestamptz created_at
+    }
+
+    ASSETS {
+        uuid id PK
+        varchar asset_code UK
+        varchar serial_number
+        varchar model_number
+        varchar manufacturer_name
+        uuid category_id FK
+        uuid laboratory_id FK
+        uuid room_id FK
+        varchar operational_status
+        date purchase_date
+        date commissioning_date
+        date warranty_expiry_date
+        date last_calibrated_date
+        date next_calibration_due
+        varchar qr_code_path
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    ASSET_TRANSFERS {
+        uuid id PK
+        uuid asset_id FK
+        uuid origin_laboratory_id FK
+        uuid target_laboratory_id FK
+        uuid initiated_by FK
+        uuid accepted_by FK
+        uuid approved_by_ulmd FK
+        varchar status
+        text transfer_reason
+        timestamptz created_at
+        timestamptz completed_at
+    }
+
+    WORK_ORDERS {
+        uuid id PK
+        varchar ticket_number UK
+        uuid asset_id FK
+        uuid reported_by FK
+        uuid assigned_to FK
+        varchar severity
+        varchar status
+        text fault_description
+        timestamptz created_at
+        timestamptz resolved_at
+        timestamptz closed_at
+    }
+
+    MAINTENANCE_LOGS {
+        uuid id PK
+        uuid work_order_id FK
+        uuid technician_id FK
+        text actions_taken
+        text spare_parts_used
+        decimal labor_hours
+        varchar outcome_condition
+        timestamptz created_at
+    }
+
+    CALIBRATION_LOGS {
+        uuid id PK
+        uuid asset_id FK
+        uuid technician_id FK
+        date calibration_date
+        varchar standard_used
+        varchar certificate_reference
+        boolean passed
+        date next_due_date
+        text notes
+        timestamptz created_at
+    }
+
+    AUDIT_LOGS {
+        bigint id PK
+        uuid user_id FK
+        varchar action
+        varchar entity_type
+        varchar entity_id
+        jsonb old_values
+        jsonb new_values
+        varchar ip_address
+        timestamptz created_at
+    }
