@@ -10,7 +10,7 @@ sequenceDiagram
     Tech->>Sys: Scan QR Code on defective equipment
     Sys-->>Tech: Display Asset Passport & Quick Actions
     Tech->>Sys: Submit Fault Report (Severity, Symptoms, Category)
-    Sys->>Sys: Set Asset Condition: NEEDS_MAINTENANCE / DEFECTIVE
+    Sys->>Sys: Set Asset Condition: UNDER_MAINTENANCE / DEFECTIVE
     Sys->>Sys: Create Work Order (WO-YYYY-XXXX)
     Sys-->>Dir: Notify Open Ticket in Dispatch Queue
     Dir->>Sys: Assign Work Order to Tech Engineer

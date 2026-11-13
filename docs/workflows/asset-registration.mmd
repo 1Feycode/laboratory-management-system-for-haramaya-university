@@ -9,7 +9,7 @@ flowchart TD
     CheckSerial -- Duplicate --> Conflict[HTTP 409 Conflict:<br/>Serial Number Exists]
     Conflict --> InputData
     
-    CheckSerial -- Unique --> GenCode[Auto-Generate Asset Code:<br/>HU-COLLEGE-DEPT-XXXXX]
+    CheckSerial -- Unique --> GenCode[Auto-Generate Asset Code:<br/>HU-COLLEGE-DEPT-NNNN]
     GenCode --> GenQR[Generate Vector QR Code Payload:<br/>https://labs.haramaya.edu.et/assets/CODE]
     GenQR --> DBInsert[(Insert into assets Table<br/>Status: OPERATIONAL)]
     DBInsert --> AuditLog[(Write to audit_logs Table<br/>Action: ASSET_CREATED)]

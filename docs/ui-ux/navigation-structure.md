@@ -42,7 +42,7 @@ This document maps the user navigation flow, route hierarchy, and role-based men
 | **Asset Inventory** | `/assets` | Visible | Visible | Visible | Visible | Visible |
 | **Register New Asset**| `/assets/register` | Visible | Hidden | Visible | Hidden | Hidden |
 | **Maintenance Hub** | `/maintenance` | Full Queue | My Assigned | My Lab | My Lab | Read-Only |
-| **Submit Fault** | `/maintenance/report`| Visible | Visible | Visible | Visible | Hidden |
+| **Submit Fault** | `/maintenance/report`| Visible | Hidden | Visible | Visible | Hidden |
 | **Calibration Log** | `/calibrations` | Full Access | Record Entry| View Due | View Due | Read-Only |
 | **Custody Transfers** | `/transfers` | Final Approval| Hidden | Initiate/Accept| Hidden | Read-Only |
 | **Reports & Analytics**| `/reports` | Full Access | Hidden | Dept Scoped | Hidden | Full Access |

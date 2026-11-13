@@ -7,7 +7,7 @@ This document details the layout, data elements, user interactions, and visual s
 ## 1. Screen Catalog
 
 ### Screen 1: Executive & Operational Dashboard (`/dashboard`)
-- **Target Roles:** `ULMD_ADMIN`, `DEPT_HEAD`, `AUDITOR`, `LAB_MANAGER`.
+- **Target Roles:** `ULMD_ADMIN`, `AUDITOR` (department-scoped where applicable), `LAB_MANAGER`.
 - **Layout Structure:**
   - **Top Row (Metrics Cards):**
     1. *Total Active Assets:* Count of equipment in `OPERATIONAL` status.
@@ -54,7 +54,7 @@ This document details the layout, data elements, user interactions, and visual s
 ---
 
 ### Screen 4: Maintenance Work Orders & Dispatch Board (`/maintenance`)
-- **Target Roles:** `LAB_TECH`, `LAB_MANAGER`, `MAINTENANCE_TECH`, `ULMD_ADMIN`.
+- **Target Roles:** `LAB_TECH`, `LAB_MANAGER`, `MAINTENANCE_TECH`, `ULMD_ADMIN`, `AUDITOR` (read-only).
 - **Layout Structure:**
   - **Status Filter Tabs:** `All`, `Open`, `Assigned`, `In Progress`, `Awaiting Parts`, `Resolved`, `Closed`.
   - **Work Order Table / Kanban Card View:**
@@ -63,11 +63,12 @@ This document details the layout, data elements, user interactions, and visual s
     - *Assign Modal (ULMD Admin):* Dropdown list of Technology Unit technicians with active workload indicators.
     - *Service Log Modal (Technician):* Multi-line input for actions taken, spare parts replaced, labor hours expended, and outcome condition selector.
     - *Verification Sign-Off Modal (Lab Manager):* Confirmation checkbox and comment field to verify that the repaired instrument operates properly before closing the ticket.
+  - **Role Restrictions:** `AUDITOR` can view work-order data only; all assignment, logging, and verification controls are hidden.
 
 ---
 
 ### Screen 5: Inter-Laboratory Custody Transfer Portal (`/transfers`)
-- **Target Roles:** `LAB_MANAGER`, `ULMD_ADMIN`.
+- **Target Roles:** `LAB_MANAGER`, `ULMD_ADMIN`, `AUDITOR` (read-only).
 - **Layout Structure:**
   - **Two Tab Views:** (1) "Outgoing Transfers", (2) "Incoming Transfers Awaiting Acceptance".
   - **Transfer Initiation Form:**
@@ -78,3 +79,4 @@ This document details the layout, data elements, user interactions, and visual s
     - Step 1: *Initiated by Origin Lab* (Completed).
     - Step 2: *Inspected & Accepted by Destination Lab* (Pending/Completed).
     - Step 3: *Approved by ULMD Directorate* (Pending/Completed).
+  - **Role Restrictions:** `AUDITOR` can view transfer history and status only; initiation, acceptance, rejection, and approval controls are hidden.

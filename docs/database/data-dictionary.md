@@ -118,7 +118,7 @@ Stores durable laboratory machinery compliant with WHO LQSI and Africa CDC stand
 - **`created_at`** (`TIMESTAMPTZ`, NOT NULL, DEFAULT `NOW()`): Creation timestamp.
 - **`updated_at`** (`TIMESTAMPTZ`, NOT NULL, DEFAULT `NOW()`): Mutation timestamp.
 - **Constraints & Indexes:**
-  - Unique composite: `uk_assets_serial_mfr UNIQUE (manufacturer_name, serial_number)`
+  - Unique composite: `uk_assets_serial_mfr UNIQUE (manufacturer_name, serial_number)`. This is stricter than Phase 1 business rule BR-002, which allows reuse after formal decommissioning; the policy conflict is unresolved under [DEC-06](../design/phase-2-open-decisions.md#dec-06-serial-number-reuse-after-decommissioning). Keep the constraint unchanged pending stakeholder confirmation.
   - Unique code index: `idx_assets_code (asset_code)`
   - Legacy tag index: `idx_assets_legacy_tag (legacy_tag_number)` (non-unique, partial where not null)
   - Status index: `idx_assets_status (operational_status)`

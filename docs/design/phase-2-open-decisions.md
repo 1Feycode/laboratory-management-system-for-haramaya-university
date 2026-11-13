@@ -9,7 +9,7 @@ This document catalogs the open architectural and operational decisions identifi
 ### DEC-01: Barcode / QR Label Migration Strategy
 - **Context:** Haramaya University has over 90 laboratories. Certain engineering and agricultural departments may have historical internal numbering schemes or paper tags.
 - **Design Impact:** If the system strictly requires its own new format (`HU-COLLEGE-DEPT-SEQ`), existing equipment must be re-labeled physically during system onboarding.
-- **Proposed Technical Baseline:** The system adopts the standardized code `HU-{COLLEGE}-{DEPT}-{5_DIGIT_SEQ}` as the authoritative primary key, while providing an optional indexed column `legacy_tag_number` in the `assets` table. This allows barcode lookups using either the old department tag or the new universal QR code.
+- **Proposed Technical Baseline:** The system adopts the Phase 1 business-rule format `HU-{COLLEGE}-{DEPT}-{4_DIGIT_SEQ}` as the authoritative asset code, while providing an optional indexed column `legacy_tag_number` in the `assets` table. This allows barcode lookups using either the old department tag or the new universal QR code. The sequence width must be revisited if a department approaches 9,999 registered assets.
 - **Confirmation Authority:** ULMD Director & College Deans.
 
 ---
@@ -45,3 +45,11 @@ This document catalogs the open architectural and operational decisions identifi
 - **Design Impact:** Affects the schema attributes required in calibration logs.
 - **Proposed Technical Baseline:** The `calibration_logs` table includes generic fields for `standard_used`, `certificate_reference`, and `accreditation_body` (nullable), accommodating both internal routine calibrations and certified external ISO audits.
 - **Confirmation Authority:** Central Laboratories Unit Head.
+
+---
+
+### DEC-06: Serial Number Reuse After Decommissioning
+- **Context:** Phase 1 business rule BR-002 permits reuse of a manufacturer/serial-number pair when the prior asset is decommissioned with a formal condemnation reference. The Phase 2 data dictionary specifies a unique constraint across all assets, which would prohibit that reuse.
+- **Design Impact:** The policy determines whether the uniqueness constraint is unconditional or excludes decommissioned assets, and how historical identity remains unambiguous.
+- **Proposed Technical Baseline:** Do not weaken the Phase 2 unique constraint until the intended reuse policy and audit implications are confirmed. The existing Phase 1 exception remains unresolved; API behavior and the final constraint must follow stakeholder confirmation.
+- **Confirmation Authority:** ULMD Directorate and the university asset-records authority.
