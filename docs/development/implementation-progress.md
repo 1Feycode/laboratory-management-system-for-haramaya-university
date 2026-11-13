@@ -20,18 +20,19 @@
 - `users.department_id` is specified `ON DELETE SET NULL`, while `LAB_MANAGER` and `LAB_TECH` provisioning requires a department. Department deletion currently honors the approved FK and can therefore clear an existing user's department assignment. The Phase 2 documents do not resolve whether deletion should instead be blocked for departments with assigned users; confirm that policy before relying on department scoping in later business modules.
 - Laboratory `manager_id` is an optional foreign key to `users`; the approved schema does not restrict its role or department. No such administrative policy was added.
 - College, department, laboratory, and room records have no approved soft-delete field. DELETE is physical only when the database's approved referential integrity permits it; foreign-key conflicts are returned as `409 Conflict`.
+- Asset and transfer tables are not part of Stage 3, so their future references to laboratories and rooms cannot yet be exercised. The Stage 3 migration adds only the hierarchy tables; Stage 4 must preserve the approved `ON DELETE RESTRICT` asset/transfer references.
 
 ### Verification
 
 | Check | Result |
 |---|---|
-| Backend automated tests | Passed; 18 tests across Stages 1–3 |
+| Backend automated tests | Passed; 19 tests across Stages 1–3 |
 | Alembic migration | Passed; `20261113_02` is head and applied |
 | Existing administrator and database records | Passed; one active `ULMD_ADMIN` preserved; no hierarchy records were fabricated |
 | PostgreSQL hierarchy tables | Passed; `colleges`, `departments`, `laboratories`, and `rooms` exist |
 | Frontend production build | Passed with TypeScript and Vite |
 | API smoke checks | Passed; database readiness is healthy and anonymous hierarchy access returns `401` |
-| Referential integrity tests | Passed; duplicate keys rejected and dependent deletes return `409` |
+| Referential integrity tests | Passed; duplicate keys rejected, dependent deletes return `409`, and department deletion follows the approved user `SET NULL` action |
 
 ## Stage 2: Authentication and User Management
 

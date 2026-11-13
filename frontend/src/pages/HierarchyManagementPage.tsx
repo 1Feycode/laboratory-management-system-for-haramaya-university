@@ -55,7 +55,7 @@ interface PageResult<T> {
 interface UserOption {
   id: string;
   full_name: string;
-  is_active: boolean;
+  role: string;
 }
 
 interface Field {
@@ -197,13 +197,13 @@ export default function HierarchyManagementPage() {
             loadAll<College>("/api/v1/hierarchy/colleges"),
             loadAll<Department>("/api/v1/hierarchy/departments"),
             loadAll<Laboratory>("/api/v1/hierarchy/laboratories"),
-            loadAll<UserOption>("/api/v1/users", { role: "LAB_MANAGER" }),
+            loadAll<UserOption>("/api/v1/users"),
           ]);
         if (active) {
           setColleges(collegeItems);
           setDepartments(departmentItems);
           setLaboratories(laboratoryItems);
-          setManagers(userPage.filter((user) => user.is_active));
+          setManagers(userPage);
         }
       } catch (loadError) {
         if (active) setError(errorText(loadError));
@@ -299,11 +299,11 @@ export default function HierarchyManagementPage() {
         },
         {
           key: "manager_id",
-          label: "Designated Lab Manager (optional)",
+          label: "Designated user (optional)",
           kind: "select",
           options: managers.map((manager) => ({
             value: manager.id,
-            label: manager.full_name,
+            label: `${manager.full_name} (${manager.role})`,
           })),
         },
       ];
@@ -408,18 +408,18 @@ export default function HierarchyManagementPage() {
       : entity === "laboratories"
         ? "Department"
         : "Laboratory";
-  const filterOptions =
-    entity === "departments"
-      ? colleges.map((item) => ({ value: item.id, label: item.name }))
-      : entity === "laboratories"
-        ? departmentOptions
-        : laboratoryOptions;
   const allFilterLabel =
     entity === "departments"
       ? "All colleges"
       : entity === "laboratories"
         ? "All departments"
         : "All laboratories";
+  const filterOptions =
+    entity === "departments"
+      ? colleges.map((item) => ({ value: item.id, label: item.name }))
+      : entity === "laboratories"
+        ? departmentOptions
+        : laboratoryOptions;
   const showFilter = entity !== "colleges";
 
   return (

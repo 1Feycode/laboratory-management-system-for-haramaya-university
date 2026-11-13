@@ -1,6 +1,11 @@
-from uuid import uuid4
+import asyncio
+from uuid import UUID, uuid4
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.security import hash_password
+from app.models.user import User
 from tests.conftest import insert_test_user
 
 
@@ -279,3 +284,51 @@ def test_hierarchy_relationships_permissions_and_referential_integrity(
         ).status_code
         == 204
     )
+
+
+def test_department_delete_applies_approved_user_set_null_action(
+    client, test_engine
+) -> None:
+    admin = insert_test_user(
+        test_engine,
+        email="admin@example.edu",
+        password_hash=hash_password("SecurePass123"),
+        role_name="ULMD_ADMIN",
+    )
+    headers = _headers(client, admin)
+    college = client.post(
+        "/api/v1/hierarchy/colleges",
+        headers=headers,
+        json={"name": "College", "code": "COL"},
+    ).json()
+    department = client.post(
+        "/api/v1/hierarchy/departments",
+        headers=headers,
+        json={
+            "college_id": college["id"],
+            "name": "Department",
+            "code": "DEP",
+        },
+    ).json()
+    manager = insert_test_user(
+        test_engine,
+        email="manager@example.edu",
+        password_hash=hash_password("SecurePass123"),
+        role_name="LAB_MANAGER",
+        department_id=UUID(department["id"]),
+    )
+
+    deleted = client.delete(
+        f"/api/v1/hierarchy/departments/{department['id']}",
+        headers=headers,
+    )
+    assert deleted.status_code == 204
+
+    async def read_department_assignment():
+        factory = async_sessionmaker(test_engine, expire_on_commit=False)
+        async with factory() as session:
+            return await session.scalar(
+                select(User.department_id).where(User.id == manager.id)
+            )
+
+    assert asyncio.run(read_department_assignment()) is None

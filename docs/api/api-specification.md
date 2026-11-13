@@ -149,7 +149,7 @@ The college must exist. Department codes are unique within a college.
 ```
 The laboratory must exist. A room number is unique within its laboratory.
 
-Successful creates return `201 Created`; reads and updates return `200 OK`; successful deletes return `204 No Content`. Duplicate unique values return `409 Conflict`; missing parent references return `422 Unprocessable Entity`; missing records return `404 Not Found`. Deletion is physical only where permitted by the approved foreign keys. A college with departments, department with laboratories, laboratory with rooms/assets, or room referenced by assets/transfers cannot be deleted (`409 Conflict`). The approved `users.department_id ON DELETE SET NULL` action means deleting a department clears that assignment; see the unresolved consistency note in the implementation progress report.
+Successful creates return `201 Created`; reads and updates return `200 OK`; successful deletes return `204 No Content`. Duplicate unique values return `409 Conflict`; missing parent references return `422 Unprocessable Entity`; missing records return `404 Not Found`. Deletion is physical only where permitted by the approved foreign keys. A college with departments, department with laboratories, or laboratory with rooms cannot be deleted (`409 Conflict`). Future asset/transfer foreign keys to laboratories and rooms must retain the approved `ON DELETE RESTRICT` behavior when those tables are implemented. The approved `users.department_id ON DELETE SET NULL` action means deleting a department clears that assignment; see the unresolved consistency note in the implementation progress report.
 
 ## 3. Asset Management Endpoints
 
