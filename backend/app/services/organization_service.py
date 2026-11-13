@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.models.asset import Asset
 from app.models.organization import College, Department, Laboratory, Room
 from app.models.user import User
 from app.schemas.organization import (
@@ -152,10 +153,25 @@ async def create_college(
 async def update_college(
     session: AsyncSession, record_id: uuid.UUID, payload: CollegeUpdate
 ) -> CollegeRead:
-    record = await session.get(College, record_id)
+    record = await session.scalar(
+        select(College).where(College.id == record_id).with_for_update()
+    )
     if record is None:
         raise HTTPException(status_code=404, detail="College not found")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    if "code" in changes and changes["code"] != record.code:
+        asset_count = await session.scalar(
+            select(func.count(Asset.id))
+            .join(Asset.laboratory)
+            .join(Laboratory.department)
+            .where(Department.college_id == record.id)
+        )
+        if asset_count:
+            raise HTTPException(
+                status_code=409,
+                detail="College code cannot change while it is used by registered asset codes",
+            )
+    for field, value in changes.items():
         setattr(record, field, value)
     await _commit(session, "College name or code already exists")
     await session.refresh(record)
@@ -237,12 +253,28 @@ async def create_department(
 async def update_department(
     session: AsyncSession, record_id: uuid.UUID, payload: DepartmentUpdate
 ) -> DepartmentRead:
-    record = await session.get(Department, record_id)
+    record = await session.scalar(
+        select(Department).where(Department.id == record_id).with_for_update()
+    )
     if record is None:
         raise HTTPException(status_code=404, detail="Department not found")
     changes = payload.model_dump(exclude_unset=True)
     if "college_id" in changes:
         await _ensure_exists(session, College, changes["college_id"], "College")
+    if (
+        ("code" in changes and changes["code"] != record.code)
+        or ("college_id" in changes and changes["college_id"] != record.college_id)
+    ):
+        asset_count = await session.scalar(
+            select(func.count(Asset.id))
+            .join(Asset.laboratory)
+            .where(Laboratory.department_id == record.id)
+        )
+        if asset_count:
+            raise HTTPException(
+                status_code=409,
+                detail="Department code or parent cannot change while it contains registered assets",
+            )
     for field, value in changes.items():
         setattr(record, field, value)
     await _commit(session, "Department code already exists in this college")
@@ -329,12 +361,27 @@ async def create_laboratory(
 async def update_laboratory(
     session: AsyncSession, record_id: uuid.UUID, payload: LaboratoryUpdate
 ) -> LaboratoryRead:
-    record = await session.get(Laboratory, record_id)
+    record = await session.scalar(
+        select(Laboratory)
+        .where(Laboratory.id == record_id)
+        .with_for_update()
+    )
     if record is None:
         raise HTTPException(status_code=404, detail="Laboratory not found")
     changes = payload.model_dump(exclude_unset=True)
     if "department_id" in changes:
         await _ensure_exists(session, Department, changes["department_id"], "Department")
+        if changes["department_id"] != record.department_id:
+            asset_count = await session.scalar(
+                select(func.count(Asset.id)).where(
+                    Asset.laboratory_id == record.id
+                )
+            )
+            if asset_count:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Laboratory department cannot change while it has registered assets",
+                )
     if changes.get("manager_id"):
         await _ensure_exists(session, User, changes["manager_id"], "Manager")
     for field, value in changes.items():
@@ -417,12 +464,23 @@ async def create_room(session: AsyncSession, payload: RoomCreate) -> RoomRead:
 async def update_room(
     session: AsyncSession, record_id: uuid.UUID, payload: RoomUpdate
 ) -> RoomRead:
-    record = await session.get(Room, record_id)
+    record = await session.scalar(
+        select(Room).where(Room.id == record_id).with_for_update()
+    )
     if record is None:
         raise HTTPException(status_code=404, detail="Room not found")
     changes = payload.model_dump(exclude_unset=True)
     if "laboratory_id" in changes:
         await _ensure_exists(session, Laboratory, changes["laboratory_id"], "Laboratory")
+        if changes["laboratory_id"] != record.laboratory_id:
+            asset_count = await session.scalar(
+                select(func.count(Asset.id)).where(Asset.room_id == record.id)
+            )
+            if asset_count:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Room laboratory cannot change while assets are assigned to the room",
+                )
     for field, value in changes.items():
         setattr(record, field, value)
     await _commit(session, "Room number already exists in this laboratory")

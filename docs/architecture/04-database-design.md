@@ -4,7 +4,7 @@
 The persistence layer utilizes **PostgreSQL 15+**. The relational schema is engineered strictly to **Third Normal Form (3NF)**:
 1. **First Normal Form (1NF):** All attributes contain atomic, scalar values. Repeating groups (such as multiple rooms or laboratory assignments) are decoupled into relational child tables.
 2. **Second Normal Form (2NF):** All non-key attributes are fully functionally dependent on the entire primary key. Single-column surrogate UUID primary keys are utilized across all core entities.
-3. **Third Normal Form (3NF):** Transitive dependencies are removed. Location hierarchy is cleanly partitioned into `colleges`, `departments`, `laboratories`, and `rooms`. An asset directly references `room_id`, which references `laboratory_id`, ensuring location consistency without data duplication. `assets.laboratory_id` is retained as an explicit **custodian laboratory** pointer; the application enforces that it matches the room's parent laboratory except during an approved shared-instrument arrangement (see Data Dictionary §7).
+3. **Third Normal Form (3NF):** Transitive dependencies are removed. Location hierarchy is cleanly partitioned into `colleges`, `departments`, `laboratories`, and `rooms`. An asset references both its custodian `laboratory_id` and current `room_id`; Stage 4 requires the selected room to belong to that laboratory. A shared-instrument/cross-laboratory exception described in the data dictionary has no approved workflow or exception record yet and is not implemented.
 
 ---
 
@@ -74,3 +74,7 @@ To ensure sub-200ms query performance on standard 8 GB RAM hardware:
 ## 5. Preservation of Historical Records
 - **Location History:** When an asset is transferred between laboratories, the `asset_transfers` table records the departure laboratory **and room**, destination laboratory **and room**, authorizing actors, and exact timestamp. The `assets` table only updates its active foreign key pointers once the transfer is finalized, so previous locations remain queryable.
 - **Maintenance History:** Work orders and maintenance logs remain permanently linked to the asset UUID, providing a complete lifetime service logbook.
+
+## 6. Stage 4 Implemented Database Slice
+
+The Stage 4 migration adds only the approved `asset_categories`, `assets`, and `audit_logs` tables and their listed constraints/indexes. Asset and asset-category mutations write JSONB snapshots in the same transaction. A database trigger rejects audit-row updates and deletes. Asset records have no hard-delete API; location and status changes remain the responsibility of the later transfer and maintenance workflows. The serial-number uniqueness constraint remains unconditional pending DEC-06 confirmation.

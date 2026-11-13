@@ -19,6 +19,7 @@ This document maps the user navigation flow, route hierarchy, and role-based men
 │   ├── [Asset Inventory]        /assets                 │
 │   │   ├── [Register Asset]     /assets/register        │
 │   │   └── [Asset Passport]     /assets/:id             │
+│   ├── [Asset Categories]       /admin/asset-categories │
 │   ├── [Maintenance Hub]        /maintenance            │
 │   │   ├── [Submit Fault]       /maintenance/report     │
 │   │   └── [Ticket Details]     /maintenance/:id        │
@@ -49,8 +50,11 @@ This document maps the user navigation flow, route hierarchy, and role-based men
 | **Audit Ledger** | `/reports/audits` | Visible | Hidden | Hidden | Hidden | Visible |
 | **User Management** | `/admin/users` | Visible | Hidden | Hidden | Hidden | Hidden |
 | **Hierarchy Setup** | `/admin/hierarchy` | Visible | Hidden | Hidden | Hidden | Hidden |
+| **Asset Categories** | `/admin/asset-categories` | Visible | Hidden | Hidden | Hidden | Hidden |
 
 The implemented hierarchy screen is restricted to `ULMD_ADMIN` and provides tabs for colleges, departments, laboratories, and rooms. Location is the approved laboratory-to-room structure, not a separate entity.
+
+The Stage 4 asset list and passport are available to all authenticated roles. Registration and metadata editing are guarded for `ULMD_ADMIN` and `LAB_MANAGER`; the backend additionally verifies that a manager is assigned to the asset's laboratory. Asset-category administration is currently `ULMD_ADMIN` only pending policy confirmation.
 
 ---
 

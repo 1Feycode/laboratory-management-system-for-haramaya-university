@@ -47,6 +47,9 @@ export default function AppLayout() {
             <NavLink to="/dashboard" className="text-slate-700 hover:text-university-700">
               Dashboard
             </NavLink>
+            <NavLink to="/assets" className="text-slate-700 hover:text-university-700">
+              Assets
+            </NavLink>
             {user.role === "ULMD_ADMIN" && (
               <>
                 <NavLink
@@ -60,6 +63,12 @@ export default function AppLayout() {
                   className="text-slate-700 hover:text-university-700"
                 >
                   Organizational structure
+                </NavLink>
+                <NavLink
+                  to="/admin/asset-categories"
+                  className="text-slate-700 hover:text-university-700"
+                >
+                  Asset categories
                 </NavLink>
               </>
             )}

@@ -5,7 +5,7 @@
 - The five canonical roles and the approved `roles` / `users` fields are implemented. The `colleges` and `departments` parent tables are included only to satisfy the approved user foreign key; hierarchy management remains out of scope.
 - User provisioning and role assignment are restricted to `ULMD_ADMIN`. There is no public registration endpoint. The first administrator is provisioned interactively through `python -m app.cli create-admin`.
 - Refresh-token rotation uses an in-process revocation set, an option allowed by ADR-05. It supports the single-process development deployment but does not preserve revoked-token state across restarts or coordinate multiple workers. A persistent token store must be selected before multi-worker or production use.
-- Authentication security events are written to structured application logs. No audit-log table or general business audit module is introduced in this stage.
+- Stage 2 authentication events are written to structured application logs. The approved `audit_logs` entity is introduced in Stage 4 for asset and category mutations; this does not add a general audit browsing module.
 - The architecture originally named Passlib as its bcrypt wrapper. Stage 2 uses the maintained `bcrypt` library directly at cost 12; the approved bcrypt format and work factor are unchanged.
 
 ## 1. Threat Model & Security Posture
@@ -142,7 +142,7 @@ app.add_middleware(
 ### 8. Audit of Security Events
 The following events generate audit records or structured security logs: successful login, failed login, account lockout, role change, user deactivation, token refresh failure, and unauthorized access attempts. Audit records never contain plaintext passwords or raw tokens.
 
-Stage 2 records these events in structured application logs without passwords or token values. Durable database audit records remain part of the later audit module.
+Stage 2 records authentication and account events in structured application logs without passwords or token values. Stage 4 writes same-transaction before/after JSONB snapshots for asset and asset-category create/update/delete operations. A PostgreSQL trigger rejects audit-row `UPDATE` and `DELETE`; physical user deletion is not exposed because the approved `user_id ON DELETE SET NULL` action would conflict with that trigger. The trigger does not replace production database-role hardening against a database owner or superuser that can disable triggers.
 
 ## 9. Implemented Authentication and User API
 

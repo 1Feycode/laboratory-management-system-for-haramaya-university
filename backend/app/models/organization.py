@@ -97,6 +97,9 @@ class Laboratory(Base):
     department: Mapped[Department] = relationship(back_populates="laboratories")
     manager: Mapped["User | None"] = relationship(foreign_keys=[manager_id])
     rooms: Mapped[list["Room"]] = relationship(back_populates="laboratory")
+    assets: Mapped[list["Asset"]] = relationship(
+        back_populates="laboratory", passive_deletes="all"
+    )
 
 
 class Room(Base):
@@ -123,3 +126,6 @@ class Room(Base):
     )
 
     laboratory: Mapped[Laboratory] = relationship(back_populates="rooms")
+    assets: Mapped[list["Asset"]] = relationship(
+        back_populates="room", passive_deletes="all"
+    )

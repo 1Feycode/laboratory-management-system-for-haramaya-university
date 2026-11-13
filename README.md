@@ -21,10 +21,10 @@ The system bridges decentralized laboratory ownership with the centralized stand
 - [x] **Stage 1: Project Foundation** *(Complete: application foundation and Docker PostgreSQL verified)*
 - [x] **Stage 2: Authentication and User Management** *(Complete: local JWT auth, role guards, and ULMD user provisioning)*
 - [x] **Stage 3: Organizational Structure** *(Implemented: colleges, departments, laboratories, and rooms)*
-- [ ] **Stage 4: Asset Lifecycle and Maintenance Modules** *(Not started)*
+- [x] **Stage 4: Asset Management** *(Implemented and verified: asset register, categories, QR lookup, and audit history)*
 - [ ] **Phase 5: Verification, Validation & Deployment** *(Upcoming)*
 
-> **Notice:** Stages 1–3 provide the foundation, identity/access, and organizational hierarchy only. Asset, transfer, maintenance, calibration, and reporting modules are not implemented. See the [implementation progress report](docs/development/implementation-progress.md).
+> **Notice:** Stages 1–4 provide the foundation, identity/access, organizational hierarchy, and asset register. Custody transfers, maintenance work orders, calibration workflows, and business reporting are not implemented. See the [implementation progress report](docs/development/implementation-progress.md).
 
 ---
 
@@ -52,7 +52,7 @@ The system bridges decentralized laboratory ownership with the centralized stand
 - **Target Host:** Windows 10/11 laptop (8 GB RAM constraint); PostgreSQL runs in Docker Desktop
 - **Version Control:** Git & GitHub
 
-## Local Setup and Stage 3
+## Local Setup and Stage 4
 
 The backend runs directly on Windows and connects to the PostgreSQL container through the published loopback port (`127.0.0.1`).
 
@@ -78,7 +78,7 @@ The backend runs directly on Windows and connects to the PostgreSQL container th
    ```powershell
    .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
    ```
-   The migrations create the approved identity and organizational hierarchy tables, and the initial migration seeds the five approved roles. The interactive CLI provisions the first `ULMD_ADMIN`; no default account or password is created.
+   The migrations create the approved identity, organizational hierarchy, asset category, asset, and append-only audit tables, and the initial migration seeds the five approved roles. The interactive CLI provisions the first `ULMD_ADMIN`; no default account or password is created.
    API documentation is available at `http://127.0.0.1:8000/docs`; liveness is at `/health` and database connectivity at `/health/ready`.
 5. In another terminal, if `frontend/.env.local` does not already exist, copy `frontend/.env.example` to it; preserve any existing local settings. Then start React:
    ```powershell
@@ -94,6 +94,10 @@ The backend runs directly on Windows and connects to the PostgreSQL container th
 After signing in as `ULMD_ADMIN`, open **Organizational structure** in the application navigation. The page supports creation, search, filtering, updates, pagination, and confirmed deletion for colleges, departments, laboratories, and rooms. Deletion is blocked when approved foreign-key relationships have dependents. Physical location is represented by a laboratory and its rooms; the approved ERD contains no separate `Location` entity.
 
 The organizational API is documented in [api-specification.md](docs/api/api-specification.md). Department deletion follows the approved `users.department_id ON DELETE SET NULL` constraint; see the implementation progress report for the resulting open role-scope issue.
+
+### Stage 4 Asset Management
+
+After signing in, open **Assets** to search and filter the inventory, scan an asset QR code, and view an asset passport. `ULMD_ADMIN` and the designated `LAB_MANAGER` for a laboratory can register assets; only `ULMD_ADMIN` manages category records. Asset codes are system-generated using the approved four-digit college/department sequence. Asset status and location are not directly editable; transfers and maintenance workflows own those changes. See the [asset API specification](docs/api/api-specification.md#3-asset-management-endpoints) and [implementation progress report](docs/development/implementation-progress.md).
 
 ### Backend Verification
 
@@ -164,4 +168,5 @@ If FastAPI is later run inside Compose, configure its database host as the Compo
 - **Stage 1: Project Foundation** - Complete and verified.
 - **Stage 2: Authentication and User Management** - Complete; see the authentication design and progress report for the in-memory refresh-token revocation limitation.
 - **Stage 3: Organizational Structure** - Complete for the approved college/department/laboratory/room entities.
-- **Next Stage: Asset Lifecycle and Maintenance Modules** - Not started. No asset, transfer, maintenance, or calibration features are present.
+- **Stage 4: Asset Management** - Complete for asset registration, categories, QR lookup, search, and asset audit snapshots.
+- **Next Stage: Custody Transfers, Maintenance, and Calibration** - Not started; do not infer those workflows are available from the Stage 4 asset register.

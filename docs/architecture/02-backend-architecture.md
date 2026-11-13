@@ -130,3 +130,9 @@ backend/
 - A lightweight scheduler runs inside the FastAPI lifespan (or as a Windows Task Scheduler job in production) once per day.
 - It queries assets with `next_calibration_due <= current_date + warning_window_days`, computes `CALIBRATION_OVERDUE` / due-soon flags, and refreshes cached dashboard counts.
 - The scheduler is idempotent and does not create duplicate work orders; failed calibrations may open an urgent work order through `MaintenanceService`.
+
+## 6. Stage 4 Asset Implementation
+
+The Stage 4 slice is implemented in `app/api/v1/assets.py`, `app/schemas/asset.py`, `app/services/asset_service.py`, and `app/models/asset.py`. Routes delegate transactions and policy checks to the service layer. It implements approved category maintenance, asset registration, server-side code sequencing, category/location validation, authenticated QR SVG rendering and lookup, filtered asset reads, and limited metadata updates. Writes require `ULMD_ADMIN` or the designated manager of the laboratory; neither location nor status is editable through the asset metadata API.
+
+Asset and category before/after snapshots are inserted into the approved `audit_logs` table in the same transaction. Migration `20261113_03_assets` installs a PostgreSQL trigger to reject audit-row updates and deletes. The broader transfer, work-order, calibration, reporting, and audit-browsing services shown in the target architecture remain unimplemented.

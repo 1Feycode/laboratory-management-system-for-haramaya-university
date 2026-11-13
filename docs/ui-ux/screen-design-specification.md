@@ -57,6 +57,15 @@ This document details the layout, data elements, user interactions, and visual s
     - *Tab 5: Custody Transfer Trail:* Historical log of all movements between laboratories.
   - **Floating Action Bar:** Contextual actions: "Report Fault", "Initiate Transfer", "Schedule Calibration".
 
+#### Stage 4 implementation scope
+- `/assets` is available to authenticated users and provides a debounced search, college/department/laboratory/category/status filters, sorting, pagination, and a camera-based QR scanner. The delivered table shows the approved asset code, model, manufacturer, category, current location, and operational status.
+- The approved data dictionary does not define an `asset_name` field; the current UI therefore identifies equipment by model number and manufacturer. It does not invent a free-text equipment-name attribute.
+- `ULMD_ADMIN` and the designated manager of the selected laboratory can register assets. The form accepts only approved asset fields, assigns the asset code on the server, and starts the asset in `OPERATIONAL`. Editing does not expose the asset code, status, or location.
+- The passport shows the approved identity, category/calibration defaults, current college/department/laboratory/room, recorded purchase/commissioning/warranty/calibration dates, and a generated SVG QR label.
+- Maintenance, calibration, transfer-history, and custody-history tabs/actions remain planned for their later stages. Stage 4 does not claim that those history datasets exist.
+- The QR payload currently contains the universal asset code. The approved workflow's absolute production URL is deferred until the public application host is confirmed; both the QR endpoint and lookup remain authenticated.
+- Category create/update/delete is currently limited to `ULMD_ADMIN`. The data dictionary defines the category entity but does not state its mutation policy; deletion is restricted by asset references and the policy is flagged for ULMD confirmation.
+
 ---
 
 ### Screen 4: Maintenance Work Orders & Dispatch Board (`/maintenance`)

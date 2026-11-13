@@ -149,16 +149,43 @@ The college must exist. Department codes are unique within a college.
 ```
 The laboratory must exist. A room number is unique within its laboratory.
 
-Successful creates return `201 Created`; reads and updates return `200 OK`; successful deletes return `204 No Content`. Duplicate unique values return `409 Conflict`; missing parent references return `422 Unprocessable Entity`; missing records return `404 Not Found`. Deletion is physical only where permitted by the approved foreign keys. A college with departments, department with laboratories, or laboratory with rooms cannot be deleted (`409 Conflict`). Future asset/transfer foreign keys to laboratories and rooms must retain the approved `ON DELETE RESTRICT` behavior when those tables are implemented. The approved `users.department_id ON DELETE SET NULL` action means deleting a department clears that assignment; see the unresolved consistency note in the implementation progress report.
+Successful creates return `201 Created`; reads and updates return `200 OK`; successful deletes return `204 No Content`. Duplicate unique values return `409 Conflict`; missing parent references return `422 Unprocessable Entity`; missing records return `404 Not Found`. Deletion is physical only where permitted by the approved foreign keys. A college with departments, department with laboratories, or laboratory with rooms cannot be deleted (`409 Conflict`). Stage 4 also blocks changing college/department code or parent relationships, laboratory department, or room laboratory while registered assets depend on those identifiers/locations. A room/laboratory move for an asset must occur through the approved custody-transfer workflow, which is not yet implemented. The approved `users.department_id ON DELETE SET NULL` action means deleting a department clears that assignment; see the unresolved consistency note in the implementation progress report.
 
 ## 3. Asset Management Endpoints
 
-### 3.1 `POST /api/v1/assets`
-- **Description:** Registers a new durable laboratory instrument.
-- **Security:** `LAB_MANAGER`, `ULMD_ADMIN`.
-- **Request Body (`application/json`):**
+All asset reads require an authenticated user. `ULMD_ADMIN` has university-wide write access. A `LAB_MANAGER` may create or update metadata only for a laboratory assigned to that user (`laboratories.manager_id`) and within the manager's department. The server independently checks these scopes.
+
+Asset codes are generated in the approved format `HU-{COLLEGE_CODE}-{DEPT_CODE}-{4_DIGIT_SEQ}`. Registration locks the department while assigning the next sequence; values beyond `9999` return `409 Conflict` and require a stakeholder-approved format change. The initial `operational_status` is `OPERATIONAL`.
+
+### 3.1 `GET /api/v1/asset-categories`
+- **Security:** Authenticated.
+- **Query parameters:** `page` (default `1`), `size` (default `100`, maximum `100`), and optional `search` (category name).
+- **Response:** Standard page envelope with category `id`, `name`, `requires_calibration`, `default_calibration_interval_days`, and `created_at`.
+
+### 3.2 Category administration
+Category fields are the approved `asset_categories` data-dictionary fields. No default categories are seeded.
+
+| Method | Endpoint | Access | Behavior |
+|---|---|---|---|
+| `POST` | `/api/v1/asset-categories` | `ULMD_ADMIN` | Create a category. Request: `{ "name": "Spectrophotometer", "requires_calibration": true, "default_calibration_interval_days": 180 }`. |
+| `GET` | `/api/v1/asset-categories/{category_id}` | Authenticated | Retrieve category details. |
+| `PATCH` | `/api/v1/asset-categories/{category_id}` | `ULMD_ADMIN` | Update one or more category fields. |
+| `DELETE` | `/api/v1/asset-categories/{category_id}` | `ULMD_ADMIN` | Delete only if no assets reference the category; otherwise returns `409 Conflict`. |
+
+Category reads support asset registration. The data dictionary defines the category entity but does not state its mutation policy; this implementation uses administrator-only maintenance, referentially restricted deletion, and no fabricated seed records. This policy should be confirmed with ULMD.
+
+### 3.3 `GET /api/v1/assets`
+- **Security:** Authenticated; all canonical roles have read access.
+- **Query parameters:** `page` (default `1`), `size` (default `20`, maximum `100`), optional `search` (asset code, legacy tag, serial, model, or manufacturer), `college_id`, `department_id`, `laboratory_id`, `category_id`, and `status`.
+- **Sorting:** `sort_by` is one of `asset_code`, `created_at`, `model_number`, `operational_status`, or `purchase_date`; `sort_order` is `asc` or `desc`.
+- **Response:** Standard page envelope containing asset records.
+
+### 3.4 `POST /api/v1/assets`
+- **Security:** `ULMD_ADMIN`, or the designated `LAB_MANAGER` for the selected laboratory.
+- **Request (`application/json`):**
   ```json
   {
+    "legacy_tag_number": "OLD-CHEM-014",
     "serial_number": "UV1900-SN84729",
     "model_number": "UV-1900i Double-Beam",
     "manufacturer_name": "Shimadzu",
@@ -170,52 +197,61 @@ Successful creates return `201 Created`; reads and updates return `200 OK`; succ
     "warranty_expiry_date": "2027-10-01"
   }
   ```
+  `legacy_tag_number` and dates are nullable/optional. `room_id` must reference a room within the selected `laboratory_id`. Asset code, operational status, calibration-history dates, and QR path are not client-editable at registration.
 - **Response (`201 Created`):**
   ```json
   {
     "id": "b182fb5a-5ffb-46d5-bb90-07e4d82531cd",
     "asset_code": "HU-HiT-CHEM-0014",
+    "legacy_tag_number": "OLD-CHEM-014",
     "serial_number": "UV1900-SN84729",
     "model_number": "UV-1900i Double-Beam",
     "manufacturer_name": "Shimadzu",
+    "category_id": "8c593672-887e-405e-85a2-f852e92c21aa",
     "category_name": "Spectrophotometer",
-    "college_code": "HiT",
-    "department_code": "CHEM",
+    "requires_calibration": true,
+    "default_calibration_interval_days": 180,
+    "laboratory_id": "e44d5162-8e10-41ff-8c10-09252c442e91",
     "laboratory_name": "Analytical Spectroscopy Lab",
+    "room_id": "d027f6e7-c62d-4d7a-8fbb-5481d9f8ce32",
     "room_number": "B-08",
+    "building_name": "Central Laboratory Building",
+    "department_id": "e5b3e693-8971-4a2d-b6d1-82bba05afe33",
+    "department_name": "Chemical Engineering",
+    "college_id": "8f084fb2-1113-4ba5-8462-d1fdd85c08e5",
+    "college_name": "Haramaya Institute of Technology",
     "operational_status": "OPERATIONAL",
+    "purchase_date": "2025-09-15",
+    "commissioning_date": "2025-10-01",
+    "warranty_expiry_date": "2027-10-01",
     "last_calibrated_date": null,
-    "next_calibration_due": "2026-04-01",
+    "next_calibration_due": null,
     "qr_code_url": "/api/v1/assets/b182fb5a-5ffb-46d5-bb90-07e4d82531cd/qr",
-    "created_at": "2026-11-11T14:35:10Z"
+    "created_at": "2026-11-13T14:35:10Z",
+    "updated_at": "2026-11-13T14:35:10Z"
   }
   ```
-- **Error Responses:**
-  - `400 Bad Request`: Validation failure.
-  - `409 Conflict`: Serial number already registered for this manufacturer.
+- **Errors:** `401` unauthenticated; `403` role/laboratory-scope failure; `409` duplicate manufacturer/serial, category name, or exhausted asset-code sequence; `422` invalid fields, missing references, or room/laboratory mismatch.
 
-### 3.2 `GET /api/v1/assets/lookup/{asset_code}`
-- **Description:** Rapid bench lookup triggered by physical QR code scan.
-- **Security:** Authenticated.
-- **Path Parameter:** `asset_code` (e.g., `HU-HiT-CHEM-0014`).
-- **Response (`200 OK`):**
-  ```json
-  {
-    "id": "b182fb5a-5ffb-46d5-bb90-07e4d82531cd",
-    "asset_code": "HU-HiT-CHEM-0014",
-    "model_number": "UV-1900i Double-Beam",
-    "manufacturer_name": "Shimadzu",
-    "category": "Spectrophotometer",
-    "laboratory": "Analytical Spectroscopy Lab",
-    "room": "B-08",
-    "operational_status": "OPERATIONAL",
-    "calibration_status": "VALID",
-    "next_calibration_due": "2026-04-01",
-    "active_work_orders_count": 0
-  }
-  ```
-- **Error Responses:**
-  - `404 Not Found`: Asset code does not exist.
+### 3.5 `GET /api/v1/assets/{asset_id}`
+Returns the asset passport using the response schema above. Returns `404 Not Found` for an unknown asset.
+
+### 3.6 `PATCH /api/v1/assets/{asset_id}`
+Requires `ULMD_ADMIN` or the designated manager for the asset's laboratory. Accepts one or more of `legacy_tag_number`, `serial_number`, `model_number`, `manufacturer_name`, `category_id`, `purchase_date`, `commissioning_date`, and `warranty_expiry_date`. Nullable tag/date fields may be cleared explicitly. `asset_code`, current location, and `operational_status` cannot be changed through this endpoint; approved transfer and maintenance workflows own custody/status transitions. Each committed change writes an old/new JSONB snapshot to `audit_logs`.
+
+Duplicate serial pairs return `409`; missing assets return `404`; invalid categories return `422`. There is deliberately no asset `DELETE` endpoint under BR-010.
+
+### 3.7 QR code and lookup
+
+| Method | Endpoint | Security | Behavior |
+|---|---|---|---|
+| `GET` | `/api/v1/assets/{asset_id}/qr` | Authenticated | Returns an SVG QR image (`image/svg+xml`) containing the universal asset code. |
+| `GET` | `/api/v1/assets/lookup/{asset_code}` | Authenticated | Looks up the universal asset code or, when no exact code exists, a legacy tag. |
+
+An exact universal code takes precedence. Legacy tags are intentionally non-unique; no match returns `404`, while multiple matches return `409` and require the universal asset code. The physical QR payload currently contains the asset code only; the absolute public URL shown in the approved workflow is deferred until the production host name is confirmed.
+
+### 3.8 Stage 4 audit behavior
+Asset create/update and asset-category create/update/delete records are inserted in the same transaction as their mutations. The approved `audit_logs` table has a PostgreSQL trigger rejecting `UPDATE` and `DELETE`. This stage does not implement audit browsing or audit records for later transfer, maintenance, calibration, or user workflows. The approved `user_id ON DELETE SET NULL` foreign key would conflict with the immutability trigger if physical user deletion is introduced; current user management deactivates accounts instead.
 
 ---
 

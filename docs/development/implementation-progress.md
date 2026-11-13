@@ -1,5 +1,47 @@
 # Implementation Progress
 
+## Stage 4: Asset Management
+
+**Status:** Implemented and verified
+**Completed:** 2026-11-13
+
+### Delivered
+
+- Implemented the approved `AssetCategory`, `Asset`, and `AssetAuditLog` SQLAlchemy models and Alembic revision `20261113_03_assets`. It creates only the approved category, asset, and audit tables; the migration was applied after confirming the database was at `20261113_02`.
+- Added database constraints and indexes for unique asset codes, the unconditional manufacturer/serial pair, approved asset status values, category names, lookup/filter fields, and restrictive asset references to category, laboratory, and room.
+- Added PostgreSQL append-only protection for `audit_logs`; direct `UPDATE` and `DELETE` attempts were rejected. A rollback-only production-schema check left no test rows.
+- Added Pydantic request/response validation and service-layer APIs for category lookups/admin maintenance, asset registration, asset retrieval, filtered/sorted/paginated listing, limited metadata updates, QR SVG generation, and lookup by either universal asset code or legacy tag.
+- Generated asset codes under a department row lock in the approved `HU-{COLLEGE_CODE}-{DEPT_CODE}-{4_DIGIT_SEQ}` form. Registration initializes status to `OPERATIONAL`, validates category and location references, and requires the room to belong to the selected laboratory.
+- Prevented hierarchy code/parent changes that would invalidate existing asset codes or split an asset's custodian laboratory from its room. Such changes remain available before assets depend on those records.
+- Restricted asset writes to `ULMD_ADMIN` or the designated `LAB_MANAGER` for the asset's laboratory and department. Asset code, operational status, and location cannot be changed through the asset metadata endpoint; there is no asset hard-delete endpoint.
+- Asset and category mutations append before/after JSONB snapshots in the same transaction. The database trigger rejects audit-row updates and deletes.
+- Added the React inventory, search/filter/sort/pagination, registration/edit forms, passport, authenticated QR rendering, camera scanner, and administrator category-management screen. The QR scanner is loaded on demand.
+- Added focused Stage 4 regression tests and updated the API, UI/UX, navigation, database, security, traceability, README, and progress documentation.
+
+### Stage 4 boundaries and unresolved decisions
+
+- No asset name, description, purchase price, separate condition table, initial categories, status transitions, asset deletion, transfers, work orders, calibration scheduling/history, reports, or general audit viewer were introduced. These are unsupported by the approved asset fields or belong to later stages.
+- **DEC-06 remains open:** the approved Phase 2 manufacturer/serial uniqueness constraint is unconditional. Serial reuse after decommissioning remains rejected until ULMD confirms the Phase 1 exception and its audit requirements.
+- **BR-010 schema gap:** the Phase 1 rule refers to a formal condemnation reference, but the approved Asset data dictionary has no such field. Stage 4 therefore does not implement decommissioning or status changes.
+- **Category policy:** the data dictionary approves category fields but does not state who may create/update/delete categories. Stage 4 uses a narrow `ULMD_ADMIN`-only policy; referenced categories cannot be deleted. ULMD confirmation is still needed.
+- **QR payload:** the approved registration workflow shows an absolute production URL, but no confirmed public host is configured. The QR currently encodes only the universal asset code; QR lookup also supports unique legacy tags. Duplicate legacy-tag matches return `409 Conflict`.
+- **Location exception:** a shared-instrument/cross-laboratory exception is mentioned in the data dictionary but has no approved workflow or persisted authorization. Stage 4 enforces exact room/laboratory parentage pending a formal decision.
+- **Audit user foreign key:** `audit_logs.user_id ON DELETE SET NULL` would require changing an audit row, which the append-only trigger blocks. Current user management deactivates accounts and exposes no physical deletion. Production DB role hardening is still required because a database owner/superuser can disable triggers.
+- Only asset and category mutations are recorded in the Stage 4 audit slice. Audit events for authentication, user changes, transfers, maintenance, and calibration, plus audit browsing, are not implemented here.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| Backend automated suite | Passed; 25 tests across Stages 1–4 |
+| Asset-focused tests | Passed; registration/code sequence, duplicate serial, invalid category/location, metadata audit snapshot, filtering/pagination, QR/legacy lookup, RBAC, and no-hard-delete behavior |
+| Alembic migration | Passed; `20261113_03` applied to the existing database without resetting it |
+| Alembic model/schema comparison | Passed; `alembic check` reported no pending operations |
+| Audit append-only protection | Passed; PostgreSQL rejected direct `UPDATE` and `DELETE`; validation rows were rolled back |
+| Existing data | Preserved; no asset/category seed records or test records were left in the application database |
+| Frontend production build | Passed with TypeScript and Vite |
+| Dependencies | Added `qrcode` to backend requirements and `html5-qrcode` to the frontend manifest/lockfile |
+
 ## Stage 3: Organizational Structure
 
 **Status:** Implemented and verified
