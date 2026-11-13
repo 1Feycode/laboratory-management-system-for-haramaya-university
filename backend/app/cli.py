@@ -54,15 +54,19 @@ async def create_initial_admin() -> None:
         print(f"Created initial ULMD_ADMIN account: {user.email}")
 
 
+async def _run_command(command: str) -> None:
+    try:
+        if command == "create-admin":
+            await create_initial_admin()
+    finally:
+        await engine.dispose()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Laboratory system administration")
     parser.add_argument("command", choices=["create-admin"])
     args = parser.parse_args()
-    try:
-        if args.command == "create-admin":
-            asyncio.run(create_initial_admin())
-    finally:
-        asyncio.run(engine.dispose())
+    asyncio.run(_run_command(args.command))
 
 
 if __name__ == "__main__":

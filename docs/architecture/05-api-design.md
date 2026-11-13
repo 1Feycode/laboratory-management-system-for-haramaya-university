@@ -53,17 +53,17 @@ All collection endpoints support standardized query parameters:
 | `GET` | `/api/v1/users/departments` | List department assignment options | `ULMD_ADMIN` | None | Department ID, name, and code |
 | `POST` | `/api/v1/auth/logout` | Revoke refresh token / clear cookie | Refresh cookie optional | None | `204 No Content` |
 
-Stage 2 implements the authentication and user-management endpoints in this table. The other API modules remain planned. User listing follows the shared `page` / `size` envelope; request and response fields are detailed in the [API specification](../api/api-specification.md).
+Stages 2 and 3 implement the authentication, user-management, and organizational hierarchy endpoints in this catalog. Asset and other business modules remain planned. Paginated listings use the shared `page` / `size` envelope; request and response fields are detailed in the [API specification](../api/api-specification.md).
 
 ### Institutional Hierarchy
 | Method | Endpoint Path | Functionality | Permitted Roles | Request Payload | Response |
 |---|---|---|---|---|---|
-| `GET` | `/api/v1/hierarchy/colleges` | List colleges & departments | Authenticated | Query: `include_depts` | List of colleges with child trees |
-| `POST` | `/api/v1/hierarchy/colleges` | Register university college | `ULMD_ADMIN` | `{"name": "...", "code": "..."}` | `201 Created` |
-| `GET` | `/api/v1/hierarchy/departments` | List departments | Authenticated | Query: `college_id` | List of departments |
-| `GET` | `/api/v1/hierarchy/laboratories` | List laboratories & rooms | Authenticated | Query: `department_id` | List of laboratories and rooms |
-| `POST` | `/api/v1/hierarchy/laboratories` | Register laboratory | `ULMD_ADMIN` | `LabCreateSchema` | `201 Created` |
-| `POST` | `/api/v1/hierarchy/rooms` | Register room | `ULMD_ADMIN` | `RoomCreateSchema` | `201 Created` |
+| `GET`, `POST`, `PATCH`, `DELETE` | `/api/v1/hierarchy/colleges[/{id}]` | Read, create, update, and constraint-aware delete | Reads: Authenticated; writes: `ULMD_ADMIN` | College schemas; list query `page`, `size`, `search` | Paginated/read DTO, `201`, `200`, or `204` |
+| `GET`, `POST`, `PATCH`, `DELETE` | `/api/v1/hierarchy/departments[/{id}]` | Department CRUD, filter by college | Reads: Authenticated; writes: `ULMD_ADMIN` | Department schemas; list query includes `college_id` | Paginated/read DTO, `201`, `200`, or `204` |
+| `GET`, `POST`, `PATCH`, `DELETE` | `/api/v1/hierarchy/laboratories[/{id}]` | Laboratory CRUD, filter by department/type | Reads: Authenticated; writes: `ULMD_ADMIN` | Laboratory schemas; list query includes `department_id`, `lab_type` | Paginated/read DTO, `201`, `200`, or `204` |
+| `GET`, `POST`, `PATCH`, `DELETE` | `/api/v1/hierarchy/rooms[/{id}]` | Room CRUD, filter by laboratory | Reads: Authenticated; writes: `ULMD_ADMIN` | Room schemas; list query includes `laboratory_id` | Paginated/read DTO, `201`, `200`, or `204` |
+
+These hierarchy APIs are implemented for Stage 3. A separate `Location` entity is not part of the approved ERD; physical location is modeled through the laboratory/room relationship.
 
 ### Asset Management & QR Codes
 | Method | Endpoint Path | Functionality | Permitted Roles | Request Payload | Response |

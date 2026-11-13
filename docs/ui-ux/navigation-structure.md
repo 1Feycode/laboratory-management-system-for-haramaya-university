@@ -50,6 +50,8 @@ This document maps the user navigation flow, route hierarchy, and role-based men
 | **User Management** | `/admin/users` | Visible | Hidden | Hidden | Hidden | Hidden |
 | **Hierarchy Setup** | `/admin/hierarchy` | Visible | Hidden | Hidden | Hidden | Hidden |
 
+The implemented hierarchy screen is restricted to `ULMD_ADMIN` and provides tabs for colleges, departments, laboratories, and rooms. Location is the approved laboratory-to-room structure, not a separate entity.
+
 ---
 
 ## 3. Route Guard & Authorization Architecture

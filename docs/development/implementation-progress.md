@@ -1,5 +1,38 @@
 # Implementation Progress
 
+## Stage 3: Organizational Structure
+
+**Status:** Implemented and verified
+**Completed:** 2026-11-13
+
+### Delivered
+
+- Implemented the ERD-approved `Laboratory` and `Room` models and ORM relationships for the existing `College` and `Department` models. Added the approved laboratory type constraint, department foreign key, optional manager foreign key, room foreign key, department index, and room-within-laboratory uniqueness.
+- Added Alembic revision `20261113_02_organizational_hierarchy` after Stage 2's identity revision. It creates only `laboratories` and `rooms`; no new `Location` entity or unrelated business tables were introduced.
+- Added authenticated paginated, searchable, filterable reads and `ULMD_ADMIN`-only create, retrieve, update, and delete APIs for colleges, departments, laboratories, and rooms.
+- Added parent existence checks, type validation, uniqueness conflict handling, explicit 404 responses, and 409 responses when database foreign keys prevent deletion.
+- Added a role-guarded hierarchy management screen with tabs for the four approved entities, parent selectors, search/filter, pagination, create/edit forms, confirmations, loading/empty states, and success/error messages.
+- Updated API, navigation, screen, README, and implementation-progress documentation.
+
+### Approved scope interpretation and unresolved consistency
+
+- The ERD does not define a standalone `Location` table. Physical location is represented as `Laboratory -> Room`, so Stage 3 implements that approved model rather than inventing another entity.
+- `users.department_id` is specified `ON DELETE SET NULL`, while `LAB_MANAGER` and `LAB_TECH` provisioning requires a department. Department deletion currently honors the approved FK and can therefore clear an existing user's department assignment. The Phase 2 documents do not resolve whether deletion should instead be blocked for departments with assigned users; confirm that policy before relying on department scoping in later business modules.
+- Laboratory `manager_id` is an optional foreign key to `users`; the approved schema does not restrict its role or department. No such administrative policy was added.
+- College, department, laboratory, and room records have no approved soft-delete field. DELETE is physical only when the database's approved referential integrity permits it; foreign-key conflicts are returned as `409 Conflict`.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| Backend automated tests | Passed; 18 tests across Stages 1–3 |
+| Alembic migration | Passed; `20261113_02` is head and applied |
+| Existing administrator and database records | Passed; one active `ULMD_ADMIN` preserved; no hierarchy records were fabricated |
+| PostgreSQL hierarchy tables | Passed; `colleges`, `departments`, `laboratories`, and `rooms` exist |
+| Frontend production build | Passed with TypeScript and Vite |
+| API smoke checks | Passed; database readiness is healthy and anonymous hierarchy access returns `401` |
+| Referential integrity tests | Passed; duplicate keys rejected and dependent deletes return `409` |
+
 ## Stage 2: Authentication and User Management
 
 **Status:** Implemented and verified  
@@ -28,7 +61,7 @@
 | Backend compilation and app import | Passed |
 | Alembic migration | Passed; `20261113_01` is head |
 | Existing PostgreSQL identity data | Passed; five canonical roles, zero user accounts |
-| Backend tests | Passed; 15 tests, including the 3 Stage 1 health tests |
+| Backend tests | Passed; 16 tests, including the 3 Stage 1 health tests and CLI cleanup regression test |
 | Password hashing and lockout | Passed; bcrypt cost 12 and 5-failure lockout verified |
 | JWT and refresh lifecycle | Passed; expiry, rotation, replay rejection, logout revocation verified |
 | API authorization and provisioning | Passed; unauthenticated and non-admin access rejected; admin create/update/deactivate tested |
@@ -38,7 +71,7 @@
 ### Remaining limitations
 
 - Refresh-token revocations and rate-limit counters are in process memory, as allowed by ADR-05 for the MVP. A server restart clears these controls, and multiple workers will not share them. Select a persistent shared store before production or multi-worker deployment.
-- The first `ULMD_ADMIN` account still needs to be created interactively in the local environment using the documented CLI command.
+- The first `ULMD_ADMIN` account has been provisioned interactively in the local environment; credentials are not recorded in this report.
 - Department-scoped roles require department records. This stage provides an admin-only department option list but does not implement hierarchy management.
 - The test client emits the existing non-blocking Starlette `httpx` deprecation warning.
 

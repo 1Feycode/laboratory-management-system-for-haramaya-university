@@ -95,3 +95,12 @@ This document details the layout, data elements, user interactions, and visual s
   - **Actions:** Provision an account with an initial password; edit profile, role, or department; activate/deactivate an account. There is no hard-delete action. The last active `ULMD_ADMIN` cannot be demoted or deactivated.
   - **Role Assignment:** The role selector contains only `ULMD_ADMIN`, `MAINTENANCE_TECH`, `LAB_MANAGER`, `LAB_TECH`, and `AUDITOR`. `LAB_MANAGER` and `LAB_TECH` require an existing department. Passwords must be at least 10 characters with a letter and digit.
   - **States:** Loading, empty, success confirmation, and validation/API error states are shown explicitly. Password values and hashes are never shown in the account table.
+
+### Screen 7: Organizational Structure (`/admin/hierarchy`)
+- **Target Role:** `ULMD_ADMIN` only; read and write APIs enforce the approved role policy independently.
+- **Layout:** Four entity tabs for Colleges, Departments, Laboratories, and Rooms. Each tab has a create/edit form and searchable, paginated record table.
+- **Relationships:** Department forms select a college; laboratory forms select a department and may select an existing user as designated manager; room forms select a laboratory. Physical locations are represented by rooms in laboratories, not a separate entity.
+- **Laboratory Fields:** Name, approved type (`WET`, `DRY`, `COMPUTING`, `WORKSHOP`), department, and optional designated manager.
+- **Room Fields:** Room number and building name, scoped to a laboratory.
+- **Filters:** Departments by college, laboratories by department, and rooms by laboratory. Search fields follow the relevant entity identifiers and names.
+- **Actions and States:** Create, edit, and confirmed delete actions display success notices, validation/API errors, and loading/empty states. Database-referenced records cannot be deleted and show the API conflict message; there is no soft-delete field in the approved schema.

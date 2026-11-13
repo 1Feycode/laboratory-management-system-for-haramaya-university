@@ -20,10 +20,11 @@ The system bridges decentralized laboratory ownership with the centralized stand
 - [x] **Phase 2: System Design & Architecture Specification** *(Completed)*
 - [x] **Stage 1: Project Foundation** *(Complete: application foundation and Docker PostgreSQL verified)*
 - [x] **Stage 2: Authentication and User Management** *(Complete: local JWT auth, role guards, and ULMD user provisioning)*
-- [ ] **Stage 3: Institutional Hierarchy and Business Modules** *(Not started)*
+- [x] **Stage 3: Organizational Structure** *(Implemented: colleges, departments, laboratories, and rooms)*
+- [ ] **Stage 4: Asset Lifecycle and Maintenance Modules** *(Not started)*
 - [ ] **Phase 5: Verification, Validation & Deployment** *(Upcoming)*
 
-> **Notice:** Stages 1 and 2 provide the application foundation and identity/access features only. Asset, maintenance, calibration, reporting, and hierarchy management are not implemented. See the [implementation progress report](docs/development/implementation-progress.md).
+> **Notice:** Stages 1–3 provide the foundation, identity/access, and organizational hierarchy only. Asset, transfer, maintenance, calibration, and reporting modules are not implemented. See the [implementation progress report](docs/development/implementation-progress.md).
 
 ---
 
@@ -51,7 +52,7 @@ The system bridges decentralized laboratory ownership with the centralized stand
 - **Target Host:** Windows 10/11 laptop (8 GB RAM constraint); PostgreSQL runs in Docker Desktop
 - **Version Control:** Git & GitHub
 
-## Local Setup and Stage 2 Authentication
+## Local Setup and Stage 3
 
 The backend runs directly on Windows and connects to the PostgreSQL container through the published loopback port (`127.0.0.1`).
 
@@ -77,7 +78,7 @@ The backend runs directly on Windows and connects to the PostgreSQL container th
    ```powershell
    .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
    ```
-   The initial migration creates only the approved identity tables (`colleges`, `departments`, `roles`, `users`) and seeds the five approved roles. The interactive CLI provisions the first `ULMD_ADMIN`; no default account or password is created.
+   The migrations create the approved identity and organizational hierarchy tables, and the initial migration seeds the five approved roles. The interactive CLI provisions the first `ULMD_ADMIN`; no default account or password is created.
    API documentation is available at `http://127.0.0.1:8000/docs`; liveness is at `/health` and database connectivity at `/health/ready`.
 5. In another terminal, if `frontend/.env.local` does not already exist, copy `frontend/.env.example` to it; preserve any existing local settings. Then start React:
    ```powershell
@@ -88,7 +89,13 @@ The backend runs directly on Windows and connects to the PostgreSQL container th
    The local API URL uses `http://localhost:8000` so the browser can send the `SameSite=Lax` refresh cookie.
 6. Open the frontend at `http://localhost:5173`. Sign in with an account provisioned by a ULMD administrator.
 
-### Stage 2 Verification
+### Stage 3 Organizational Structure
+
+After signing in as `ULMD_ADMIN`, open **Organizational structure** in the application navigation. The page supports creation, search, filtering, updates, pagination, and confirmed deletion for colleges, departments, laboratories, and rooms. Deletion is blocked when approved foreign-key relationships have dependents. Physical location is represented by a laboratory and its rooms; the approved ERD contains no separate `Location` entity.
+
+The organizational API is documented in [api-specification.md](docs/api/api-specification.md). Department deletion follows the approved `users.department_id ON DELETE SET NULL` constraint; see the implementation progress report for the resulting open role-scope issue.
+
+### Backend Verification
 
 Run backend tests from `backend/`:
 ```powershell
@@ -156,4 +163,5 @@ If FastAPI is later run inside Compose, configure its database host as the Compo
 - **Phase 2: Architecture & System Design** - Complete. Comprehensive technical blueprints and specifications.
 - **Stage 1: Project Foundation** - Complete and verified.
 - **Stage 2: Authentication and User Management** - Complete; see the authentication design and progress report for the in-memory refresh-token revocation limitation.
-- **Next Stage: Institutional Hierarchy and Business Modules** - Not started. No asset, transfer, maintenance, or calibration features are present.
+- **Stage 3: Organizational Structure** - Complete for the approved college/department/laboratory/room entities.
+- **Next Stage: Asset Lifecycle and Maintenance Modules** - Not started. No asset, transfer, maintenance, or calibration features are present.

@@ -99,9 +99,61 @@ All user-management endpoints require the `ULMD_ADMIN` role. Public self-registr
 - **Request:** Partial JSON object containing at least one supported field. Password updates are not part of this endpoint.
 - **Errors:** `404 Not Found`; `409 Conflict` for duplicate email or attempting to demote/deactivate the last active `ULMD_ADMIN`; `422 Unprocessable Entity` for invalid assignments.
 
-## 2. Asset Management Endpoints
+## 2. Organizational Hierarchy and Locations
 
-### 2.1 `POST /api/v1/assets`
+The approved location structure is `College -> Department -> Laboratory -> Room`. There is no separate `Location` entity or table; a physical location is represented by its room and parent hierarchy. All hierarchy reads require an authenticated user. All mutations require `ULMD_ADMIN`, matching FR-002 and the approved role matrix.
+
+List endpoints accept `page` (default `1`), `size` (default `20`, maximum `100`), and `search` (maximum 100 characters), and return `{ "items": [], "total": 0, "page": 1, "size": 20, "pages": 0 }`.
+
+| Entity | List/search and filters | Create | Retrieve | Update | Delete |
+|---|---|---|---|---|---|
+| Colleges | `GET /api/v1/hierarchy/colleges`; search name/code | `POST /api/v1/hierarchy/colleges` | `GET /api/v1/hierarchy/colleges/{id}` | `PATCH /api/v1/hierarchy/colleges/{id}` | `DELETE /api/v1/hierarchy/colleges/{id}` |
+| Departments | `GET /api/v1/hierarchy/departments`; filter `college_id`, search name/code | `POST /api/v1/hierarchy/departments` | `GET /api/v1/hierarchy/departments/{id}` | `PATCH /api/v1/hierarchy/departments/{id}` | `DELETE /api/v1/hierarchy/departments/{id}` |
+| Laboratories | `GET /api/v1/hierarchy/laboratories`; filter `department_id` and `lab_type`, search name | `POST /api/v1/hierarchy/laboratories` | `GET /api/v1/hierarchy/laboratories/{id}` | `PATCH /api/v1/hierarchy/laboratories/{id}` | `DELETE /api/v1/hierarchy/laboratories/{id}` |
+| Rooms | `GET /api/v1/hierarchy/rooms`; filter `laboratory_id`, search room number/building | `POST /api/v1/hierarchy/rooms` | `GET /api/v1/hierarchy/rooms/{id}` | `PATCH /api/v1/hierarchy/rooms/{id}` | `DELETE /api/v1/hierarchy/rooms/{id}` |
+
+### College request
+```json
+{ "name": "Haramaya Institute of Technology", "code": "HiT" }
+```
+College name and code are each unique.
+
+### Department request
+```json
+{
+  "college_id": "d027f6e7-c62d-4d7a-8fbb-5481d9f8ce32",
+  "name": "Chemical Engineering",
+  "code": "CHEM"
+}
+```
+The college must exist. Department codes are unique within a college.
+
+### Laboratory request
+```json
+{
+  "department_id": "d027f6e7-c62d-4d7a-8fbb-5481d9f8ce32",
+  "name": "Analytical Laboratory",
+  "lab_type": "WET",
+  "manager_id": null
+}
+```
+`lab_type` must be one of `WET`, `DRY`, `COMPUTING`, or `WORKSHOP`. The department must exist; a non-null manager must reference an existing user. The approved schema does not constrain the manager's role or department.
+
+### Room request
+```json
+{
+  "laboratory_id": "e44d5162-8e10-41ff-8c10-09252c442e91",
+  "room_number": "B-14",
+  "building_name": "Central Laboratory Building"
+}
+```
+The laboratory must exist. A room number is unique within its laboratory.
+
+Successful creates return `201 Created`; reads and updates return `200 OK`; successful deletes return `204 No Content`. Duplicate unique values return `409 Conflict`; missing parent references return `422 Unprocessable Entity`; missing records return `404 Not Found`. Deletion is physical only where permitted by the approved foreign keys. A college with departments, department with laboratories, laboratory with rooms/assets, or room referenced by assets/transfers cannot be deleted (`409 Conflict`). The approved `users.department_id ON DELETE SET NULL` action means deleting a department clears that assignment; see the unresolved consistency note in the implementation progress report.
+
+## 3. Asset Management Endpoints
+
+### 3.1 `POST /api/v1/assets`
 - **Description:** Registers a new durable laboratory instrument.
 - **Security:** `LAB_MANAGER`, `ULMD_ADMIN`.
 - **Request Body (`application/json`):**
@@ -142,7 +194,7 @@ All user-management endpoints require the `ULMD_ADMIN` role. Public self-registr
   - `400 Bad Request`: Validation failure.
   - `409 Conflict`: Serial number already registered for this manufacturer.
 
-### 2.2 `GET /api/v1/assets/lookup/{asset_code}`
+### 3.2 `GET /api/v1/assets/lookup/{asset_code}`
 - **Description:** Rapid bench lookup triggered by physical QR code scan.
 - **Security:** Authenticated.
 - **Path Parameter:** `asset_code` (e.g., `HU-HiT-CHEM-0014`).
@@ -167,9 +219,9 @@ All user-management endpoints require the `ULMD_ADMIN` role. Public self-registr
 
 ---
 
-## 3. Maintenance & Work Order Endpoints
+## 4. Maintenance & Work Order Endpoints
 
-### 3.1 `POST /api/v1/work-orders`
+### 4.1 `POST /api/v1/work-orders`
 - **Description:** Submit fault report and open maintenance ticket.
 - **Security:** `LAB_TECH`, `LAB_MANAGER`, `ULMD_ADMIN`.
 - **Request Body (`application/json`):**
@@ -195,7 +247,7 @@ All user-management endpoints require the `ULMD_ADMIN` role. Public self-registr
   }
   ```
 
-### 3.2 `POST /api/v1/work-orders/{id}/logs`
+### 4.2 `POST /api/v1/work-orders/{id}/logs`
 - **Description:** Log diagnostic actions and spare parts for an assigned ticket.
 - **Security:** `MAINTENANCE_TECH`, `ULMD_ADMIN`.
 - **Request Body (`application/json`):**
@@ -220,7 +272,7 @@ All user-management endpoints require the `ULMD_ADMIN` role. Public self-registr
   }
   ```
 
-### 3.3 `PUT /api/v1/work-orders/{id}/close`
+### 4.3 `PUT /api/v1/work-orders/{id}/close`
 - **Description:** Custodian Lab Manager signs off on completed repair, closing ticket and restoring equipment to operational status.
 - **Security:** `LAB_MANAGER`, `ULMD_ADMIN`.
 - **Request Body (`application/json`):**

@@ -48,9 +48,20 @@ export default function AppLayout() {
               Dashboard
             </NavLink>
             {user.role === "ULMD_ADMIN" && (
-              <NavLink to="/admin/users" className="text-slate-700 hover:text-university-700">
-                User management
-              </NavLink>
+              <>
+                <NavLink
+                  to="/admin/users"
+                  className="text-slate-700 hover:text-university-700"
+                >
+                  User management
+                </NavLink>
+                <NavLink
+                  to="/admin/hierarchy"
+                  className="text-slate-700 hover:text-university-700"
+                >
+                  Organizational structure
+                </NavLink>
+              </>
             )}
           </div>
         </nav>
