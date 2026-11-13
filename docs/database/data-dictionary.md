@@ -1,6 +1,24 @@
 # Database Data Dictionary
 
-This document specifies the PostgreSQL 15+ relational schema for the Laboratory Asset Management and Maintenance Tracking System, covering all 12 normalized tables, column constraints, referential actions, and performance indexes.
+This document specifies the PostgreSQL 15+ relational schema for the Laboratory Asset Management and Maintenance Tracking System, covering all **13 normalized tables**, column constraints, referential actions, and performance indexes.
+
+### Table Inventory
+
+| # | Table | Purpose |
+|---|---|---|
+| 1 | `colleges` | University colleges and institutes. |
+| 2 | `departments` | Academic departments within colleges. |
+| 3 | `laboratories` | Laboratories owned by departments or ULMD. |
+| 4 | `rooms` | Physical rooms within laboratories. |
+| 5 | `roles` | Canonical RBAC role definitions. |
+| 6 | `users` | Authentication credentials and institutional assignments. |
+| 7 | `asset_categories` | Equipment categories and calibration defaults. |
+| 8 | `assets` | Durable equipment master records. |
+| 9 | `asset_transfers` | Custody transfer workflow and location history. |
+| 10 | `work_orders` | Fault tickets and maintenance dispatch. |
+| 11 | `maintenance_logs` | Repair actions, parts, and labor records. |
+| 12 | `calibration_logs` | Calibration events and compliance records. |
+| 13 | `audit_logs` | Append-only immutable audit vault. |
 
 ---
 
@@ -62,6 +80,8 @@ Stores user authentication credentials and institutional assignments.
 - **`role_id`** (`UUID`, NOT NULL, FK -> `roles.id` ON DELETE RESTRICT): RBAC role.
 - **`department_id`** (`UUID`, NULLABLE, FK -> `departments.id` ON DELETE SET NULL): Department scope.
 - **`is_active`** (`BOOLEAN`, NOT NULL, DEFAULT TRUE): Account status.
+- **`failed_login_attempts`** (`INT`, NOT NULL, DEFAULT 0): Consecutive failed authentication count used for lockout.
+- **`locked_until`** (`TIMESTAMPTZ`, NULLABLE): Temporary lockout expiry after five consecutive failures.
 - **`created_at`** (`TIMESTAMPTZ`, NOT NULL, DEFAULT `NOW()`): Creation timestamp.
 - **Indexes:** `idx_users_email (email)`, `idx_users_role (role_id)`
 
@@ -80,14 +100,15 @@ Stores functional categories of laboratory equipment.
 ### 3.2 `assets` (Core Equipment Master Record)
 Stores durable laboratory machinery compliant with WHO LQSI and Africa CDC standards.
 - **`id`** (`UUID`, PK): Primary key, default `gen_random_uuid()`.
-- **`asset_code`** (`VARCHAR(100)`, NOT NULL, UNIQUE): Formatted code (`HU-{COLLEGE}-{DEPT}-{AUTO}`).
+- **`asset_code`** (`VARCHAR(100)`, NOT NULL, UNIQUE): Formatted code (`HU-{COLLEGE}-{DEPT}-{4_DIGIT_SEQ}`, e.g., `HU-HiT-CHEM-0014`).
+- **`legacy_tag_number`** (`VARCHAR(100)`, NULLABLE): Optional historical departmental tag/barcode retained during migration (DEC-01).
 - **`serial_number`** (`VARCHAR(100)`, NOT NULL): Manufacturer serial number.
 - **`model_number`** (`VARCHAR(100)`, NOT NULL): Equipment model.
 - **`manufacturer_name`** (`VARCHAR(150)`, NOT NULL): Manufacturer.
 - **`category_id`** (`UUID`, NOT NULL, FK -> `asset_categories.id` ON DELETE RESTRICT): Equipment category.
 - **`laboratory_id`** (`UUID`, NOT NULL, FK -> `laboratories.id` ON DELETE RESTRICT): Custodian laboratory.
 - **`room_id`** (`UUID`, NOT NULL, FK -> `rooms.id` ON DELETE RESTRICT): Current physical room.
-- **`operational_status`** (`VARCHAR(50)`, NOT NULL, DEFAULT 'OPERATIONAL'): `OPERATIONAL`, `UNDER_MAINTENANCE`, `DEFECTIVE`, `DECOMMISSIONED`.
+- **`operational_status`** (`VARCHAR(50)`, NOT NULL, DEFAULT 'OPERATIONAL'): `OPERATIONAL`, `UNDER_MAINTENANCE`, `DEFECTIVE`, `TRANSFER_PENDING`, `DECOMMISSIONED`. `CALIBRATION_OVERDUE` is a computed compliance flag derived from `next_calibration_due`, not a stored status.
 - **`purchase_date`** (`DATE`, NULLABLE): Date of purchase invoice.
 - **`commissioning_date`** (`DATE`, NULLABLE): Date installed and put into active service.
 - **`warranty_expiry_date`** (`DATE`, NULLABLE): Warranty expiration date.
@@ -99,6 +120,7 @@ Stores durable laboratory machinery compliant with WHO LQSI and Africa CDC stand
 - **Constraints & Indexes:**
   - Unique composite: `uk_assets_serial_mfr UNIQUE (manufacturer_name, serial_number)`
   - Unique code index: `idx_assets_code (asset_code)`
+  - Legacy tag index: `idx_assets_legacy_tag (legacy_tag_number)` (non-unique, partial where not null)
   - Status index: `idx_assets_status (operational_status)`
   - Calibration index: `idx_assets_next_cal (next_calibration_due)`
   - Laboratory index: `idx_assets_lab (laboratory_id)`
@@ -112,12 +134,15 @@ Tracks inter-laboratory equipment relocations and preserves historical custody.
 - **`id`** (`UUID`, PK): Primary key, default `gen_random_uuid()`.
 - **`asset_id`** (`UUID`, NOT NULL, FK -> `assets.id` ON DELETE RESTRICT): Relocated asset.
 - **`origin_laboratory_id`** (`UUID`, NOT NULL, FK -> `laboratories.id` ON DELETE RESTRICT): Origin laboratory.
+- **`origin_room_id`** (`UUID`, NOT NULL, FK -> `rooms.id` ON DELETE RESTRICT): Origin physical room at the time of transfer.
 - **`target_laboratory_id`** (`UUID`, NOT NULL, FK -> `laboratories.id` ON DELETE RESTRICT): Destination laboratory.
+- **`target_room_id`** (`UUID`, NOT NULL, FK -> `rooms.id` ON DELETE RESTRICT): Destination physical room.
 - **`initiated_by`** (`UUID`, NOT NULL, FK -> `users.id`): Origin Lab Manager.
 - **`accepted_by`** (`UUID`, NULLABLE, FK -> `users.id`): Destination Lab Manager.
 - **`approved_by_ulmd`** (`UUID`, NULLABLE, FK -> `users.id`): ULMD Admin sign-off.
 - **`status`** (`VARCHAR(50)`, NOT NULL, DEFAULT 'PENDING_RECEIVER'): `PENDING_RECEIVER`, `PENDING_ULMD`, `COMPLETED`, `REJECTED`.
 - **`transfer_reason`** (`TEXT`, NOT NULL): Administrative justification.
+- **`notes`** (`TEXT`, NULLABLE): Receiver acceptance notes or rejection reason.
 - **`created_at`** (`TIMESTAMPTZ`, NOT NULL, DEFAULT `NOW()`): Request timestamp.
 - **`completed_at`** (`TIMESTAMPTZ`, NULLABLE): Finalization timestamp.
 - **Indexes:** `idx_transfers_asset (asset_id)`, `idx_transfers_status (status)`
@@ -130,12 +155,15 @@ Tracks equipment breakdowns, technician dispatch, and resolution states.
 - **`reported_by`** (`UUID`, NOT NULL, FK -> `users.id`): Reporting technician/manager.
 - **`assigned_to`** (`UUID`, NULLABLE, FK -> `users.id`): Servicing Technology Unit technician.
 - **`severity`** (`VARCHAR(30)`, NOT NULL): `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`.
-- **`status`** (`VARCHAR(50)`, NOT NULL, DEFAULT 'OPEN'): `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `RESOLVED`, `CLOSED`.
+- **`failure_category`** (`VARCHAR(50)`, NOT NULL): `ELECTRICAL`, `MECHANICAL`, `OPTICAL`, `SOFTWARE`, `CONSUMABLE`, `OTHER`.
+- **`status`** (`VARCHAR(50)`, NOT NULL, DEFAULT 'OPEN'): `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `AWAITING_APPROVAL`, `RESOLVED`, `CLOSED`. `AWAITING_APPROVAL` is reserved for the DEC-02 external-parts approval baseline.
 - **`fault_description`** (`TEXT`, NOT NULL): Detailed symptom report.
+- **`verified_by`** (`UUID`, NULLABLE, FK -> `users.id`): Custodian Lab Manager who signed off closure.
+- **`verification_notes`** (`TEXT`, NULLABLE): Lab Manager's operational test and sign-off comments.
 - **`created_at`** (`TIMESTAMPTZ`, NOT NULL, DEFAULT `NOW()`): Report timestamp.
 - **`resolved_at`** (`TIMESTAMPTZ`, NULLABLE): Repair completion timestamp.
 - **`closed_at`** (`TIMESTAMPTZ`, NULLABLE): Custodian verification timestamp.
-- **Indexes:** `idx_wo_asset (asset_id)`, `idx_wo_status (status)`, `idx_wo_assigned (assigned_to)`
+- **Indexes:** `idx_wo_asset (asset_id)`, `idx_wo_status (status)`, `idx_wo_assigned (assigned_to)`, `idx_wo_ticket (ticket_number)`
 
 ### 4.3 `maintenance_logs`
 Stores detailed records of physical repairs, replaced parts, and labor expended.
@@ -157,6 +185,7 @@ Records precision instrument calibration standards, pass/fail status, and certif
 - **`calibration_date`** (`DATE`, NOT NULL): Service execution date.
 - **`standard_used`** (`VARCHAR(150)`, NOT NULL): Standard or buffer reference.
 - **`certificate_reference`** (`VARCHAR(100)`, NULLABLE): Document file reference.
+- **`accreditation_body`** (`VARCHAR(150)`, NULLABLE): External metrology/accreditation body (e.g., ENAO) where applicable (DEC-05).
 - **`passed`** (`BOOLEAN`, NOT NULL): Pass/fail validation flag.
 - **`next_due_date`** (`DATE`, NOT NULL): Calculated next calibration deadline.
 - **`notes`** (`TEXT`, NULLABLE): Technical observations.
@@ -179,3 +208,27 @@ Records an immutable log of all critical system mutations.
 - **`ip_address`** (`VARCHAR(45)`, NULLABLE): Client IP address.
 - **`created_at`** (`TIMESTAMPTZ`, NOT NULL, DEFAULT `NOW()`): Timestamp of modification.
 - **Indexes:** `idx_audit_entity (entity_type, entity_id)`, `idx_audit_user (user_id)`, `idx_audit_created (created_at)`
+
+---
+
+## 6. Canonical Enumerations
+
+The following values are the single source of truth for application enums, API validation, and UI badges. Database columns remain `VARCHAR` with application-level validation and optional PostgreSQL `CHECK` constraints in Alembic migrations.
+
+| Enum | Allowed Values | Notes |
+|---|---|---|
+| **Application Roles** | `ULMD_ADMIN`, `MAINTENANCE_TECH`, `LAB_MANAGER`, `LAB_TECH`, `AUDITOR` | Five canonical MVP roles; see stakeholder analysis §3. |
+| **Asset Operational Status** | `OPERATIONAL`, `UNDER_MAINTENANCE`, `DEFECTIVE`, `TRANSFER_PENDING`, `DECOMMISSIONED` | `CALIBRATION_OVERDUE` is computed, not stored. |
+| **Asset Category Lab Type** | `WET`, `DRY`, `COMPUTING`, `WORKSHOP` | Stored on `laboratories.lab_type`. |
+| **Work Order Status** | `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `AWAITING_APPROVAL`, `RESOLVED`, `CLOSED` | `AWAITING_APPROVAL` is conditional on DEC-02. |
+| **Work Order Severity** | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` | Critical faults set the asset to `DEFECTIVE`. |
+| **Failure Category** | `ELECTRICAL`, `MECHANICAL`, `OPTICAL`, `SOFTWARE`, `CONSUMABLE`, `OTHER` | Stored on `work_orders.failure_category`. |
+| **Maintenance Outcome** | `OPERATIONAL`, `REPAIRED_DEGRADED`, `UNREPAIRABLE` | Stored on `maintenance_logs.outcome_condition`. |
+| **Transfer Status** | `PENDING_RECEIVER`, `PENDING_ULMD`, `COMPLETED`, `REJECTED` | Asset status is `TRANSFER_PENDING` while the transfer is active. |
+| **Audit Actions (examples)** | `ASSET_CREATED`, `STATUS_MODIFIED`, `TRANSFER_COMPLETED`, `WORK_ORDER_CLOSED`, `CALIBRATION_LOGGED` | Free-form action strings; examples are not exhaustive. |
+
+---
+
+## 7. 3NF Note on Asset Location
+
+`assets` stores both `laboratory_id` (custodian laboratory) and `room_id` (current physical room). This is intentional: custody and physical placement can differ temporarily during a transfer or shared-instrument arrangement. The application enforces that the selected `room_id` belongs to the selected `laboratory_id` unless an explicit cross-laboratory custody exception is approved. `asset_transfers` preserves both laboratory and room identifiers so historical locations are never overwritten.

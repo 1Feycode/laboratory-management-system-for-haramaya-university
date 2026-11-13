@@ -78,7 +78,7 @@ This document details the primary system actors and concrete use cases governing
 - **Main Flow:**
   1. Lab Manager conducts test run of the repaired instrument in the laboratory.
   2. If satisfied, Lab Manager navigates to ticket, enters verification comments, and clicks "Verify & Close Ticket".
-  3. System updates ticket status to `CLOSED`.
+  3. System records the verifying Lab Manager UUID and verification notes, then updates ticket status to `CLOSED`.
   4. System updates asset operational condition to `OPERATIONAL`.
   5. System writes an immutable audit record.
 - **Alternative Flow:** Instrument still malfunctioning -> Lab Manager clicks "Reject Repair" with detailed feedback -> Ticket status reverts to `IN_PROGRESS` and notifies the technician.
@@ -88,14 +88,14 @@ This document details the primary system actors and concrete use cases governing
 - **Preconditions:** Asset is currently in `OPERATIONAL` condition.
 - **Trigger:** Academic departments agree to relocate or reassign an instrument.
 - **Main Flow:**
-  1. Origin Lab Manager initiates transfer request specifying Asset ID, Destination Laboratory, and justification.
+  1. Origin Lab Manager initiates transfer request specifying Asset ID, Destination Laboratory, Destination Room, and justification.
   2. System sets asset condition to `TRANSFER_PENDING` and transfer status to `PENDING_RECEIVER`.
   3. Destination Lab Manager inspects the physical equipment upon delivery and clicks "Accept Asset".
   4. System sets transfer status to `PENDING_ULMD`.
   5. ULMD Admin reviews transfer justification and approves the reassignment.
   6. System updates asset `laboratory_id` and `room_id` foreign keys.
   7. System sets transfer status to `COMPLETED` and restores asset condition to `OPERATIONAL`.
-  8. System records location change in transfer history and writes an audit log.
+  8. System records the origin and destination laboratory **and room** in `asset_transfers` history and writes an audit log.
 - **Alternative Flow:** Destination Lab Manager or ULMD Admin rejects transfer -> System sets transfer status to `REJECTED`, retains original location, and restores asset condition to `OPERATIONAL`.
 
 ### UC-07: Log Certified Calibration Event

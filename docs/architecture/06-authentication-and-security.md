@@ -59,12 +59,15 @@ sequenceDiagram
 | **Initiate Equipment Transfer** | Yes | No | Yes (own lab) | No | No |
 | **Accept Inbound Transfer** | Yes | No | Yes (target lab)| No | No |
 | **Approve Final Transfer Relocation**| Yes | No | No | No | No |
-| **Report Fault / Open Ticket** | Yes | Yes | Yes | Yes | No |
+| **Report Fault / Open Ticket** | Yes | No | Yes | Yes | No |
 | **Assign Technician to Ticket** | Yes | No | No | No | No |
 | **Submit Maintenance & Repair Log** | Yes | Yes | No | No | No |
 | **Verify Repair & Close Ticket** | Yes | No | Yes (own lab) | No | No |
 | **Record Certified Calibration** | Yes | Yes | No | No | No |
-| **View Audit Trail & System Analytics**| Yes | No | Scoped | Scoped | Yes |
+| **View Scoped Operational Analytics** | Yes | No | Yes (own lab) | No | Yes |
+| **View Immutable Audit Trail** | Yes | No | No | No | Yes |
+
+> **Role canonicalization:** The five columns above are the only application roles. Department Heads and the Materials Unit use `AUDITOR` with department-scoped or university-wide read-only assignment respectively. There is no `DEPT_HEAD`, `INVENTORY_AUDITOR`, or `SYSTEM_ADMIN` application role in the MVP.
 
 ---
 
@@ -99,3 +102,31 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 ```
+
+### 4. Password Policy & Account Lockout
+- Minimum length 10 characters, including at least one letter and one digit; passwords are never truncated.
+- Passwords are hashed with bcrypt cost 12 and compared in constant time.
+- Five consecutive failed login attempts set `users.locked_until = NOW() + 15 minutes` and reset `failed_login_attempts` on successful authentication.
+- Lockout responses are intentionally generic (`401 Unauthorized`) to avoid account enumeration.
+
+### 5. Rate Limiting & Abuse Controls
+- Login and refresh endpoints are rate-limited per IP and per account (for example, 10 requests/minute/IP in production).
+- The MVP may enforce limits in Nginx or a lightweight in-process middleware; Redis is not required.
+- Repeated authorization failures are logged to the application log and, where appropriate, to `audit_logs`.
+
+### 6. Token Revocation & Logout
+- Access tokens are short-lived (30 minutes) and validated statelessly.
+- Refresh tokens are rotated on use; the previous token is invalidated.
+- Logout clears the `HttpOnly` refresh cookie and records the event in the audit log.
+- A database or in-memory deny-list may be used for emergency revocation; the MVP does not require Redis.
+
+### 7. Secrets & Configuration
+- `SECRET_KEY`, database credentials, and CORS origins are supplied through environment variables (`.env` locally; server environment in production).
+- Secrets are never committed to Git; `.env.example` contains placeholders only.
+- Production TLS certificates are managed by the ICT Directorate and terminated at Nginx.
+
+### 8. Audit of Security Events
+The following events generate audit records or structured security logs: successful login, failed login, account lockout, role change, user deactivation, token refresh failure, and unauthorized access attempts. Audit records never contain plaintext passwords or raw tokens.
+
+### 9. File Upload Security (Deferred)
+Binary attachments (manuals, calibration certificates) are a Release 2 feature. When introduced, uploads must be size-limited, MIME-validated, stored outside the web root, and served through authenticated endpoints. The MVP stores only `certificate_reference` strings.

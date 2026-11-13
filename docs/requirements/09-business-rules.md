@@ -8,11 +8,11 @@ This document codifies the operational policies, constraints, and business logic
 
 - **BR-001 (Unique University Identification):**
   Every durable asset registered must be assigned an immutable, unique Asset Identification Code following the format:
-  `HU-{COLLEGE_CODE}-{DEPT_CODE}-{5_DIGIT_AUTO_INCREMENT}` (e.g., `HU-HiT-CHEM-00042`).
-  *Rationale:* Adheres to WHO LQSI guidelines for facility-specific equipment identification and prevents collision across colleges.
+  `HU-{COLLEGE_CODE}-{DEPT_CODE}-{4_DIGIT_AUTO_INCREMENT}` (e.g., `HU-HiT-CHEM-0014`).
+  *Rationale:* Adheres to WHO LQSI guidelines for facility-specific equipment identification and prevents collision across colleges. The four-digit sequence is the canonical MVP format used consistently across the API examples, workflow diagrams, and repository conventions. If the university inventory exceeds 9,999 assets in a single department, a future migration may widen the sequence to five digits.
 
 - **BR-002 (Manufacturer Serial Uniqueness):**
-  The combination of `manufacturer_name` and `serial_number` must be globally unique within the system. The system must reject any attempt to register an existing manufacturer serial number unless the previous asset is marked `CONDEMNED_SCRAP`.
+  The combination of `manufacturer_name` and `serial_number` must be globally unique within the system. The system must reject any attempt to register an existing manufacturer serial number unless the previous asset is marked `DECOMMISSIONED` with a formal condemnation reference.
 
 - **BR-003 (Strict Separation of Durable Assets & Consumables):**
   Only non-expendable equipment with an expected operational lifespan exceeding one year and requiring capital inventory tracking may be registered in the `assets` table. Volatile chemicals, solvents, glassware, and disposable plastics are strictly prohibited from this table.
@@ -41,14 +41,17 @@ This document codifies the operational policies, constraints, and business logic
 - **BR-007 (Operational Condition State Machine):**
   An asset’s condition must strictly adhere to the following finite-state rules:
   ```
-  ACQUIRED ──▶ OPERATIONAL ──▶ UNDER_MAINTENANCE ──▶ OPERATIONAL
-                    │                    │
-                    ├──▶ DEFECTIVE ──────┤
-                    │                    ▼
-                    └───────────▶ DECOMMISSIONED
+  OPERATIONAL ──▶ UNDER_MAINTENANCE ──▶ OPERATIONAL
+       │                    │
+       ├──▶ DEFECTIVE ──────┤
+       │                    ▼
+       ├──▶ TRANSFER_PENDING ──▶ OPERATIONAL
+       │
+       └───────────▶ DECOMMISSIONED
   ```
-  - An asset marked `DEFECTIVE` or `UNDER_MAINTENANCE` is locked from being scheduled for academic practical sessions or approved for transfers.
-  - Restoration to `OPERATIONAL` requires a closed work order verified by the custodian Lab Manager.
+  - `ACQUIRED` is a pre-commissioning procurement state. Assets enter the application at `OPERATIONAL` after commissioning; `ACQUIRED` is not persisted as an MVP asset status.
+  - An asset marked `DEFECTIVE`, `UNDER_MAINTENANCE`, or `TRANSFER_PENDING` is locked from being scheduled for academic practical sessions or approved for additional transfers.
+  - Restoration to `OPERATIONAL` requires a closed work order verified by the custodian Lab Manager (or completion/rejection of the active transfer for `TRANSFER_PENDING`).
 
 - **BR-008 (Work Order Accountability):**
   A work order cannot be closed (`CLOSED`) without:

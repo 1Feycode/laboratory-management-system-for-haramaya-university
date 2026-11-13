@@ -44,9 +44,9 @@ These features represent the absolute baseline required to solve the primary ope
 9. **Immutable Audit Trail:** Append-only recording of all asset mutations, location updates, and maintenance closures.
 
 ### Should Have (Important but Secondary - Release 2)
-1. **Automated Preventive Maintenance Alerts:** System notifications triggered 30, 15, and 7 days prior to scheduled calibration deadlines.
-2. **Executive Analytical Dashboard:** Aggregated uptime/downtime percentages per college, open work order distributions, and overdue calibration widgets.
-3. **Service Manual & Document Attachments:** Uploading user manuals, calibration certificates, and equipment photos (PDF/JPEG) to the asset passport.
+1. **Automated Preventive Maintenance Alerts:** Proactive notifications triggered 30, 15, and 7 days prior to scheduled calibration deadlines. (The MVP must still calculate due/overdue status and display a `CALIBRATION_OVERDUE` badge; only proactive multi-channel reminders are deferred.)
+2. **Advanced Executive Analytical Dashboard:** Historical uptime/downtime trend analysis, cross-college benchmarking, and drill-down widgets beyond the MVP operational counts and inventory export defined in FR-010.
+3. **Service Manual & Document Attachments:** Uploading user manuals, calibration certificates, and equipment photos (PDF/JPEG) to the asset passport. (The MVP stores a certificate reference string; binary document upload is deferred.)
 4. **Bulk CSV/Excel Asset Import:** Staging validation tool to import legacy department spreadsheets into the database.
 
 ### Could Have (Future Enhancements)

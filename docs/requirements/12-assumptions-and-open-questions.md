@@ -25,7 +25,7 @@ This document captures the working assumptions adopted during Phase 1 analysis a
 
 ### Open Question 2: Repair Approval Thresholds
 - **Question:** Does the ULMD Director or Department Head need to approve maintenance requests before a technician is dispatched, or is dispatching automatic based on severity?
-- **Impact on System Design:** Determines whether the work order state machine requires an explicit `APPROVAL_PENDING` state before transitioning to `ASSIGNED`.
+- **Impact on System Design:** Determines whether the work order state machine requires an explicit `AWAITING_APPROVAL` state before transitioning to `ASSIGNED`.
 - **Proposed Baseline:** `CRITICAL` and `HIGH` severity tickets immediately notify the Technology Unit for rapid dispatch; tickets requiring external replacement parts exceeding a financial threshold require administrative sign-off.
 
 ### Open Question 3: Institutional Single Sign-On (SSO) Integration
@@ -36,4 +36,19 @@ This document captures the working assumptions adopted during Phase 1 analysis a
 ### Open Question 4: External Calibration Accreditation
 - **Question:** Which specific laboratory instruments at Central Laboratories require certified external metrology accreditation (e.g., from the Ethiopian National Accreditation Office - ENAO) versus routine internal calibration?
 - **Impact on System Design:** Determines metadata attributes required in calibration records, specifically external certificate document attachments and accreditation body tracking.
-- **Proposed Baseline:** Include `standard_used`, `certificate_reference`, and optional document attachment capabilities within the calibration schema.
+- **Proposed Baseline:** Include `standard_used`, `certificate_reference`, and `accreditation_body` (nullable) within the calibration schema; binary certificate upload remains a Release 2 enhancement.
+
+### Open Question 5: Canonical Application Role Set
+- **Question:** Should College Deans and Department Heads receive a distinct `DEPT_HEAD` application role, or should their read-only analytics access be delivered through a department-scoped `AUDITOR` assignment?
+- **Impact on System Design:** A sixth role would require changes to the `roles` table, RBAC matrix, API guards, and navigation. The current design uses five canonical roles and maps Department Heads to department-scoped `AUDITOR` access.
+- **Proposed Baseline:** Retain the five-role MVP (`ULMD_ADMIN`, `MAINTENANCE_TECH`, `LAB_MANAGER`, `LAB_TECH`, `AUDITOR`). Revisit a dedicated `DEPT_HEAD` role only if stakeholder interviews confirm a need for departmental approval workflows.
+
+### Open Question 6: Notification Delivery Channel
+- **Question:** Should work order and transfer alerts be delivered only as in-application queues, or also by institutional email/SMS?
+- **Impact on System Design:** Persistent notification records and external delivery adapters would add tables, background workers, and credentials. The MVP derives alerts from open work orders and pending transfers.
+- **Proposed Baseline:** MVP provides in-application queues and dashboard badges only. Email/SMS delivery is deferred to Release 2 and documented as an open decision.
+
+### Open Question 7: Full Room-Level Transfer History
+- **Question:** Must the audit trail preserve the exact room (not only the laboratory) from which an asset departed and the room to which it arrived?
+- **Impact on System Design:** The `asset_transfers` table must store `origin_room_id` and `target_room_id` in addition to laboratory identifiers.
+- **Proposed Baseline:** Yes. Phase 2 adds origin and target room foreign keys to `asset_transfers` so the complete physical location history is retained.

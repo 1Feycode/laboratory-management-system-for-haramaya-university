@@ -64,14 +64,14 @@ This document identifies the institutional stakeholders involved in the laborato
 - **Institutional Role:** Quarterly inventory reviews; evaluation of departmental purchase requisitions against current stock; resource waste reduction; Kaizen 5S enforcement.
 - **Information Provided:** Quarterly audit schedules, inventory discrepancy notifications, procurement cross-check clearance.
 - **Information Needed:** Accurate asset counts per department, equipment operational status, lists of obsolete or unrepairable equipment awaiting condemnation.
-- **System Role:** `INVENTORY_AUDITOR`
+- **System Role:** `AUDITOR` (university-wide read-only inventory and compliance scope)
 - **Expected Benefits:** Eliminates duplicate procurement requests; enables fast reconciliation between physical laboratory audits and central records.
 
 ### 4. College Deans and Department Heads
 - **Institutional Role:** Academic program resource management; laboratory space allocation; approving departmental equipment transfer requests.
 - **Information Provided:** Departmental priorities, technician work allocations, transfer authorizations.
 - **Information Needed:** Departmental equipment availability, operational readiness for upcoming practical courses, budget impact of damaged assets.
-- **System Role:** `DEPT_HEAD` (Analytical and approval permissions scoped to their department).
+- **System Role:** `AUDITOR` (department-scoped read-only analytics; no approval rights in the MVP). Department Heads who require approval authority are mapped to `LAB_MANAGER` only when formally appointed as custodians of a laboratory.
 - **Expected Benefits:** Protection against asset loss during staff turnover; reliable equipment readiness data for accreditation.
 
 ### 5. Department Laboratory Managers (Chief Technical Assistants)
@@ -104,5 +104,21 @@ This document identifies the institutional stakeholders involved in the laborato
 - **Institutional Role:** Managing university data centers, network infrastructure, institutional email domains, and enterprise security.
 - **Information Provided:** Server infrastructure, network access, domain certificates, institutional directory integration.
 - **Information Needed:** Application resource utilization, security audit logs, backup completion logs.
-- **System Role:** `SYSTEM_ADMIN` (Server, infrastructure, and database administrative maintenance).
+- **System Role:** No application RBAC role. ICT performs server, network, and database administration outside the application; application-level administration remains with `ULMD_ADMIN`.
 - **Expected Benefits:** Standardized, secure web deployment hosted within university infrastructure.
+
+---
+
+## 3. Canonical System Roles (MVP)
+
+The stakeholder catalog above maps institutional offices to the following five application roles. These are the only roles stored in the `roles` table and referenced by API guards in Phase 2.
+
+| Canonical Role | Institutional Counterpart | Scope |
+|---|---|---|
+| `ULMD_ADMIN` | ULMD Director and unit supervisors | University-wide read/write; master data, dispatch, final transfer approval, user provisioning. |
+| `MAINTENANCE_TECH` | ULMD Laboratory Technology Unit specialists | Assigned work orders, maintenance logs, calibration records. |
+| `LAB_MANAGER` | Department Laboratory Managers / Chief TAs | Assets, faults, transfers, and repair verification within assigned laboratory/department. |
+| `LAB_TECH` | Laboratory Technicians and Technical Assistants | Bench-side QR lookup and fault reporting within assigned laboratory. |
+| `AUDITOR` | ULMD Materials Unit, compliance officers, and read-only Department Heads | Read-only inventory, downtime, and audit views; university-wide for Materials Unit, department-scoped for Department Heads. |
+
+> **Terminology note:** Earlier drafts used `INVENTORY_AUDITOR`, `DEPT_HEAD`, and `SYSTEM_ADMIN`. These are institutional designations, not application roles. They are mapped to `AUDITOR` (read-only) or handled outside the application as described above.

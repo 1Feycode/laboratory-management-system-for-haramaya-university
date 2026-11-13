@@ -7,7 +7,7 @@ This document provides detailed, testable, and uniquely numbered functional requ
 ## Module 1: Institutional Hierarchy & Access Control
 
 ### FR-001: User Authentication and Role Management
-- **Description:** The system must securely authenticate users using institutional credentials and enforce role-based access control (RBAC).
+- **Description:** The system must securely authenticate users with an institutional email address and local password, and enforce role-based access control (RBAC).
 - **Responsible Actor:** All Users (`ULMD_ADMIN`, `MAINTENANCE_TECH`, `LAB_MANAGER`, `LAB_TECH`, `AUDITOR`).
 - **Input:** Institutional email address, plaintext password.
 - **Expected System Behavior:** Validates email format, verifies salted bcrypt password hash, verifies active account flag, and issues a signed JSON Web Token (JWT) containing user UUID, role, and department scope.
@@ -63,8 +63,8 @@ This document provides detailed, testable, and uniquely numbered functional requ
 - **Expected Output:** HTTP 200 OK with finalized transfer receipt.
 - **Priority:** Must Have.
 - **Acceptance Criteria:**
-  1. Asset cannot be transferred if currently marked `DEFECTIVE` or `UNDER_MAINTENANCE`.
-  2. Full historical location trail must be preserved in `asset_transfers`.
+  1. Asset cannot be transferred if currently marked `DEFECTIVE`, `UNDER_MAINTENANCE`, or `TRANSFER_PENDING`.
+  2. Full historical location trail must be preserved in `asset_transfers`, including origin and destination laboratory **and room** identifiers.
 
 ---
 
@@ -87,10 +87,10 @@ This document provides detailed, testable, and uniquely numbered functional requ
 - **Description:** The system must track maintenance assignment, diagnostic actions, spare parts, and ticket closure.
 - **Responsible Actor:** `ULMD_ADMIN` (assigns), `MAINTENANCE_TECH` (executes), `LAB_MANAGER` (verifies).
 - **Input:** Work order ID, assigned technician ID, repair actions taken, spare parts used, labor hours, outcome condition.
-- **Expected System Behavior:** Logs maintenance record; updates ticket status through `ASSIGNED` -> `IN_PROGRESS` -> `RESOLVED` -> `CLOSED`. Requires custodian Lab Manager verification to close.
+- **Expected System Behavior:** Logs maintenance record; updates ticket status through `ASSIGNED` -> `IN_PROGRESS` -> `RESOLVED` -> `CLOSED`, with optional `AWAITING_PARTS` and `AWAITING_APPROVAL` exception states. Requires custodian Lab Manager verification to close.
 - **Expected Output:** HTTP 200 OK with closed work order and updated asset condition.
 - **Priority:** Must Have.
-- **Acceptance Criteria:** Ticket cannot transition to `RESOLVED` without a non-empty maintenance log.
+- **Acceptance Criteria:** Ticket cannot transition to `RESOLVED` without a non-empty maintenance log; closure must persist the verifying Lab Manager UUID and verification notes.
 
 ### FR-008: Calibration Tracking and Scheduling
 - **Description:** The system must record precision calibration events and track upcoming due dates.
@@ -116,9 +116,9 @@ This document provides detailed, testable, and uniquely numbered functional requ
 
 ### FR-010: Executive Dashboards and Inventory Reporting
 - **Description:** The system must generate operational dashboards and filterable inventory reports.
-- **Responsible Actor:** `ULMD_ADMIN`, `AUDITOR`, `DEPT_HEAD`.
+- **Responsible Actor:** `ULMD_ADMIN`, `AUDITOR` (university-wide or department-scoped read-only).
 - **Input:** Date ranges, college filters, department filters, status filters.
 - **Expected System Behavior:** Computes uptime percentages, counts open work orders, aggregates calibration compliance, and exports structured CSV/Excel reports.
 - **Expected Output:** Dashboard charts and downloadable inventory files.
 - **Priority:** Must Have.
-- **Acceptance Criteria:** Reports must aggregate and render in under 2 seconds for inventories up to 10,000 items.
+- **Acceptance Criteria:** Reports must aggregate and render within 1,500 ms for inventories up to 10,000 items, consistent with NFR-PER-01.

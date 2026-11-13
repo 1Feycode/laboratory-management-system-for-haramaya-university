@@ -12,10 +12,13 @@ erDiagram
     ASSETS ||--o{ ASSET_TRANSFERS : undergoes
     LABORATORIES ||--o{ ASSET_TRANSFERS : origin_lab
     LABORATORIES ||--o{ ASSET_TRANSFERS : target_lab
+    ROOMS ||--o{ ASSET_TRANSFERS : origin_room
+    ROOMS ||--o{ ASSET_TRANSFERS : target_room
 
     ASSETS ||--o{ WORK_ORDERS : issues
     USERS ||--o{ WORK_ORDERS : reports
     USERS ||--o{ WORK_ORDERS : assigned_tech
+    USERS ||--o{ WORK_ORDERS : verifies
 
     WORK_ORDERS ||--o{ MAINTENANCE_LOGS : produces
     USERS ||--o{ MAINTENANCE_LOGS : technician
@@ -71,6 +74,8 @@ erDiagram
         uuid role_id FK
         uuid department_id FK
         boolean is_active
+        int failed_login_attempts
+        timestamptz locked_until
         timestamptz created_at
     }
 
@@ -85,6 +90,7 @@ erDiagram
     ASSETS {
         uuid id PK
         varchar asset_code UK
+        varchar legacy_tag_number
         varchar serial_number
         varchar model_number
         varchar manufacturer_name
@@ -106,12 +112,15 @@ erDiagram
         uuid id PK
         uuid asset_id FK
         uuid origin_laboratory_id FK
+        uuid origin_room_id FK
         uuid target_laboratory_id FK
+        uuid target_room_id FK
         uuid initiated_by FK
         uuid accepted_by FK
         uuid approved_by_ulmd FK
         varchar status
         text transfer_reason
+        text notes
         timestamptz created_at
         timestamptz completed_at
     }
@@ -123,8 +132,11 @@ erDiagram
         uuid reported_by FK
         uuid assigned_to FK
         varchar severity
+        varchar failure_category
         varchar status
         text fault_description
+        uuid verified_by FK
+        text verification_notes
         timestamptz created_at
         timestamptz resolved_at
         timestamptz closed_at
@@ -148,6 +160,7 @@ erDiagram
         date calibration_date
         varchar standard_used
         varchar certificate_reference
+        varchar accreditation_body
         boolean passed
         date next_due_date
         text notes

@@ -57,8 +57,15 @@ frontend/
 │   │   │   ├── WorkOrderListPage.tsx
 │   │   │   └── WorkOrderDetailPage.tsx
 │   │   ├── calibrations/CalibrationSchedulePage.tsx
-│   │   ├── reports/ReportsDashboardPage.tsx
-│   │   └── admin/UserManagementPage.tsx
+│   │   ├── reports/
+│   │   │   ├── ReportsDashboardPage.tsx
+│   │   │   └── AuditLogPage.tsx
+│   │   ├── admin/
+│   │   │   ├── HierarchyManagePage.tsx
+│   │   │   └── UserManagementPage.tsx
+│   │   └── errors/
+│   │       ├── ForbiddenPage.tsx
+│   │       └── NotFoundPage.tsx
 │   ├── routes/               # Navigation Guards
 │   │   ├── AppRoutes.tsx
 │   │   └── ProtectedRoute.tsx# Server-backed RBAC route guard
@@ -67,6 +74,11 @@ frontend/
 │   │   ├── authService.ts
 │   │   ├── assetService.ts
 │   │   ├── maintenanceService.ts
+│   │   ├── transferService.ts
+│   │   ├── calibrationService.ts
+│   │   ├── reportService.ts
+│   │   ├── auditService.ts
+│   │   ├── userService.ts
 │   │   └── hierarchyService.ts
 │   ├── types/                # TypeScript Interface Declarations
 │   │   └── index.ts
@@ -103,4 +115,7 @@ Bench-side technicians and managers require rapid equipment identification witho
   - `OPERATIONAL`: Green (`bg-emerald-100 text-emerald-800`)
   - `UNDER_MAINTENANCE`: Amber (`bg-amber-100 text-amber-800`)
   - `DEFECTIVE`: Red (`bg-rose-100 text-rose-800`)
-  - `CALIBRATION_OVERDUE`: Purple badge with alert triangle icon
+  - `TRANSFER_PENDING`: Blue (`bg-sky-100 text-sky-800`)
+  - `DECOMMISSIONED`: Slate/gray (`bg-slate-100 text-slate-700`)
+  - `CALIBRATION_OVERDUE`: Purple badge with alert triangle icon (computed flag, not a stored status)
+- **Client vs. Server Authorization:** `RoleGuard` improves navigation UX by hiding unauthorized routes, but it is **not** a security boundary. Every API request is independently authorized server-side; a user who manipulates client state still receives HTTP 403 from the API.

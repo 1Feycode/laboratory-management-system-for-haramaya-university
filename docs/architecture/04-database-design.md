@@ -4,7 +4,7 @@
 The persistence layer utilizes **PostgreSQL 15+**. The relational schema is engineered strictly to **Third Normal Form (3NF)**:
 1. **First Normal Form (1NF):** All attributes contain atomic, scalar values. Repeating groups (such as multiple rooms or laboratory assignments) are decoupled into relational child tables.
 2. **Second Normal Form (2NF):** All non-key attributes are fully functionally dependent on the entire primary key. Single-column surrogate UUID primary keys are utilized across all core entities.
-3. **Third Normal Form (3NF):** Transitive dependencies are removed. Location hierarchy is cleanly partitioned into `colleges`, `departments`, `laboratories`, and `rooms`. An asset directly references `room_id`, which references `laboratory_id`, ensuring location consistency without data duplication.
+3. **Third Normal Form (3NF):** Transitive dependencies are removed. Location hierarchy is cleanly partitioned into `colleges`, `departments`, `laboratories`, and `rooms`. An asset directly references `room_id`, which references `laboratory_id`, ensuring location consistency without data duplication. `assets.laboratory_id` is retained as an explicit **custodian laboratory** pointer; the application enforces that it matches the room's parent laboratory except during an approved shared-instrument arrangement (see Data Dictionary §7).
 
 ---
 
@@ -25,10 +25,13 @@ erDiagram
     ASSETS ||--o{ ASSET_TRANSFERS : undergoes
     LABORATORIES ||--o{ ASSET_TRANSFERS : origin_lab
     LABORATORIES ||--o{ ASSET_TRANSFERS : target_lab
+    ROOMS ||--o{ ASSET_TRANSFERS : origin_room
+    ROOMS ||--o{ ASSET_TRANSFERS : target_room
 
     ASSETS ||--o{ WORK_ORDERS : issues
     USERS ||--o{ WORK_ORDERS : reports
     USERS ||--o{ WORK_ORDERS : assigned_tech
+    USERS ||--o{ WORK_ORDERS : verifies
 
     WORK_ORDERS ||--o{ MAINTENANCE_LOGS : produces
     USERS ||--o{ MAINTENANCE_LOGS : technician
@@ -41,7 +44,13 @@ erDiagram
 
 ---
 
-## 3. Relational Safeguards & Integrity Constraints
+## 3. Schema Scope
+
+The schema contains **13 normalized tables**: `colleges`, `departments`, `laboratories`, `rooms`, `roles`, `users`, `asset_categories`, `assets`, `asset_transfers`, `work_orders`, `maintenance_logs`, `calibration_logs`, and `audit_logs`. The complete column-level specification is maintained in the [Data Dictionary](../database/data-dictionary.md).
+
+---
+
+## 4. Relational Safeguards & Integrity Constraints
 
 ### 1. Referential Integrity Actions (`ON DELETE RESTRICT`)
 To ensure that historical asset data and audit records cannot be compromised:
@@ -62,6 +71,6 @@ To ensure sub-200ms query performance on standard 8 GB RAM hardware:
 
 ---
 
-## 4. Preservation of Historical Records
-- **Location History:** When an asset is transferred between laboratories, the `asset_transfers` table records the departure lab, destination lab, authorizing actors, and exact timestamp. The `assets` table only updates its active foreign key pointer once the transfer is finalized.
+## 5. Preservation of Historical Records
+- **Location History:** When an asset is transferred between laboratories, the `asset_transfers` table records the departure laboratory **and room**, destination laboratory **and room**, authorizing actors, and exact timestamp. The `assets` table only updates its active foreign key pointers once the transfer is finalized, so previous locations remain queryable.
 - **Maintenance History:** Work orders and maintenance logs remain permanently linked to the asset UUID, providing a complete lifetime service logbook.

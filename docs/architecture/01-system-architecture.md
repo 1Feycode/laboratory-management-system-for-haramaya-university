@@ -73,7 +73,7 @@ flowchart TD
 - Ensures transaction atomicity with automatic rollback on unhandled service exceptions.
 
 ### 4. Database Layer (PostgreSQL 15+)
-- Stores relational data in Third Normal Form (3NF) across 12 core tables.
+- Stores relational data in Third Normal Form (3NF) across 13 core tables.
 - Enforces referential integrity using foreign keys with `ON DELETE RESTRICT` for active asset connections.
 - Houses the `audit_logs` table configured with database permissions that prohibit `UPDATE` and `DELETE` commands.
 
@@ -95,7 +95,40 @@ All API error responses follow the standard RFC 7807 specification:
 
 ---
 
-## 5. Backup and Recovery Considerations
+## 5. Notification Strategy (MVP)
+
+The MVP does not introduce a separate notification service, message broker, or persistent `notifications` table. Alerts are **derived views** over authoritative workflow state:
+
+- **Work order dispatch queue:** all `work_orders` with status `OPEN` or `AWAITING_APPROVAL`, ordered by severity and age.
+- **Transfer inbox:** all `asset_transfers` with status `PENDING_RECEIVER` for the destination Lab Manager, and `PENDING_ULMD` for ULMD administrators.
+- **Calibration warning queue:** assets whose `next_calibration_due` falls within the configured warning window, plus overdue assets.
+- **Dashboard badges:** counts computed from the same queries.
+
+This keeps the MVP stateless with respect to notifications and avoids adding infrastructure that would exceed the 8 GB RAM constraint. Email/SMS delivery and persistent notification history are deferred to Release 2 (see [Open Decisions](../design/phase-2-open-decisions.md)).
+
+---
+
+## 6. Observability & Operational Logging
+
+- **Application logs:** structured JSON logs to stdout via Python `logging`, including request ID, user UUID (when authenticated), route, status code, and latency.
+- **Audit trail:** business-critical mutations are written synchronously to `audit_logs`; application logs are not a substitute for the audit vault.
+- **Health endpoints:** `GET /health` (liveness) and `GET /health/ready` (database connectivity) for local and production monitoring.
+- **Metrics:** lightweight request-count and latency counters exposed at `/metrics` may be added in Phase 3; no Prometheus/Grafana stack is required for the MVP.
+
+---
+
+## 7. Integration Boundaries
+
+| External System | Interaction | Boundary |
+|---|---|---|
+| **EFMD / BMOM** | Building utility outages that affect laboratory equipment | Manual escalation/export; no direct API integration in MVP. |
+| **University ICT Directorate** | Network, TLS certificates, backups, server hosting | Infrastructure responsibility; application exposes health and backup scripts. |
+| **Institutional email/SSO** | Future identity provider | Authentication interface is isolated for future OAuth2/LDAP integration (DEC-04). |
+| **Procurement/Finance** | Purchase requisition cross-checks | Out of scope; ULMD uses exported inventory reports. |
+
+---
+
+## 8. Backup and Recovery Considerations
 - **Logical Daily Backups:** Automated daily PostgreSQL dumps using `pg_dump` scheduled during low-utilization windows (02:00 EAT).
 - **Point-in-Time Recovery (PITR):** PostgreSQL Write-Ahead Logging (WAL) archiving enables recovery to any specific second in the event of hardware or storage failure.
 - **Audit Ledger Protection:** Historical audit tables are retained indefinitely and excluded from automated archival purge routines.
