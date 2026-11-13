@@ -512,6 +512,11 @@ async def update_asset(
     )
     if asset is None:
         raise HTTPException(status_code=404, detail="Asset not found")
+    if asset.operational_status == "TRANSFER_PENDING":
+        raise HTTPException(
+            status_code=409,
+            detail="Asset details are locked while a custody transfer is pending",
+        )
     _authorize_lab_write(user, asset.laboratory)
     old_values = _asset_values(asset)
     changes = payload.model_dump(exclude_unset=True)

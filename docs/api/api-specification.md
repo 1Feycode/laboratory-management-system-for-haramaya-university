@@ -149,7 +149,7 @@ The college must exist. Department codes are unique within a college.
 ```
 The laboratory must exist. A room number is unique within its laboratory.
 
-Successful creates return `201 Created`; reads and updates return `200 OK`; successful deletes return `204 No Content`. Duplicate unique values return `409 Conflict`; missing parent references return `422 Unprocessable Entity`; missing records return `404 Not Found`. Deletion is physical only where permitted by the approved foreign keys. A college with departments, department with laboratories, or laboratory with rooms cannot be deleted (`409 Conflict`). Stage 4 also blocks changing college/department code or parent relationships, laboratory department, or room laboratory while registered assets depend on those identifiers/locations. A room/laboratory move for an asset must occur through the approved custody-transfer workflow, which is not yet implemented. The approved `users.department_id ON DELETE SET NULL` action means deleting a department clears that assignment; see the unresolved consistency note in the implementation progress report.
+Successful creates return `201 Created`; reads and updates return `200 OK`; successful deletes return `204 No Content`. Duplicate unique values return `409 Conflict`; missing parent references return `422 Unprocessable Entity`; missing records return `404 Not Found`. Deletion is physical only where permitted by the approved foreign keys. A college with departments, department with laboratories, or laboratory with rooms cannot be deleted (`409 Conflict`). Stage 4 blocks hierarchy changes that would invalidate registered asset codes or locations; Stage 5 also blocks laboratory/room parent reassignment when transfer history references those records. Asset location changes are performed through the custody-transfer workflow below. The approved `users.department_id ON DELETE SET NULL` action means deleting a department clears that assignment; see the unresolved consistency note in the implementation progress report.
 
 ## 3. Asset Management Endpoints
 
@@ -250,8 +250,35 @@ Duplicate serial pairs return `409`, including when the existing asset is `DECOM
 
 An exact universal code takes precedence. Legacy tags are intentionally non-unique; no match returns `404`, while multiple matches return `409` and require the universal asset code. When the optional `ASSET_PUBLIC_BASE_URL` setting is configured to the confirmed frontend origin (without a path, query, or credentials), the QR payload is `{origin}/assets/scan?code={encoded_asset_code}`. The protected frontend route looks up the code and opens its passport; authentication is still required. The camera scanner accepts both this URL and the legacy code-only payload. If the setting is unset, QR payloads remain code-only. No canonical production origin is currently configured.
 
-### 3.8 Stage 4 audit behavior
-Asset create/update and asset-category create/update/delete records are inserted in the same transaction as their mutations. The approved `audit_logs` table has a PostgreSQL trigger rejecting `UPDATE` and `DELETE`. This stage does not implement audit browsing or audit records for later transfer, maintenance, calibration, or user workflows. The approved `user_id ON DELETE SET NULL` foreign key would conflict with the immutability trigger if physical user deletion is introduced; current user management deactivates accounts instead.
+### 3.8 Asset and transfer audit behavior
+Asset and asset-category mutations write before/after JSONB snapshots in the same transaction as their changes. Stage 5 transfer initiation, receiver acceptance, rejection, and ULMD completion also write transfer-state snapshots; asset status/location changes write corresponding asset snapshots in the same transaction. The PostgreSQL trigger rejects `UPDATE` and `DELETE` on `audit_logs`. The API does not expose a general audit browsing endpoint. The approved `user_id ON DELETE SET NULL` foreign key would conflict with the immutability trigger if physical user deletion is introduced; current user management deactivates accounts instead.
+
+### 3.9 Custody transfer endpoints
+
+Transfers use only the approved `asset_transfers` fields. The table stores the source and destination laboratory/room IDs, actors, status, reason, notes, and timestamps; no separate assignment entity is introduced. Initial location assignment remains part of asset registration and is captured by the `ASSET_CREATED` audit snapshot. Each later transfer transition and its asset-state change is committed atomically with append-only audit snapshots. During an active transfer, the asset retains its origin location and has status `TRANSFER_PENDING`. The current `assets.laboratory_id` and `assets.room_id` change only on ULMD completion.
+
+| Method | Endpoint | Access | Behavior |
+|---|---|---|---|
+| `GET` | `/api/v1/transfers` | `ULMD_ADMIN`, `LAB_MANAGER`, `AUDITOR` | Paginated history; optional `status` and `asset_id` filters. Lab managers see transfers involving a laboratory for which they are the designated manager; ULMD administrators and auditors can view all. |
+| `POST` | `/api/v1/transfers` | `ULMD_ADMIN`, origin `LAB_MANAGER` | Initiate from an `OPERATIONAL` asset and a valid target laboratory/room. A designated active target Lab Manager is required. Sets transfer `PENDING_RECEIVER` and asset `TRANSFER_PENDING`. |
+| `GET` | `/api/v1/transfers/{transfer_id}` | `ULMD_ADMIN`, `LAB_MANAGER`, `AUDITOR` | Retrieve a transfer and its chronological status events from `audit_logs`, subject to the same manager scope as the list endpoint. |
+| `PUT` | `/api/v1/transfers/{transfer_id}/accept` | `ULMD_ADMIN`, destination `LAB_MANAGER` | Accept a `PENDING_RECEIVER` transfer, recording `accepted_by` and optional notes; moves it to `PENDING_ULMD`. |
+| `PUT` | `/api/v1/transfers/{transfer_id}/reject` | `ULMD_ADMIN`, destination `LAB_MANAGER` | Reject an active transfer with required explanatory notes. A destination manager may reject `PENDING_RECEIVER`; only `ULMD_ADMIN` may reject `PENDING_ULMD`. The asset returns to `OPERATIONAL` at its original location. |
+| `PUT` | `/api/v1/transfers/{transfer_id}/approve` | `ULMD_ADMIN` | Approve a `PENDING_ULMD` transfer, set the asset's destination laboratory/room and `OPERATIONAL` status, and mark the transfer `COMPLETED`. |
+
+`POST` request:
+```json
+{
+  "asset_id": "b182fb5a-5ffb-46d5-bb90-07e4d82531cd",
+  "target_laboratory_id": "e44d5162-8e10-41ff-8c10-09252c442e91",
+  "target_room_id": "d027f6e7-c62d-4d7a-8fbb-5481d9f8ce32",
+  "transfer_reason": "Move the instrument to support the receiving laboratory"
+}
+```
+
+The create and decision endpoints return the full transfer representation, including source/destination room details and `status_history`. Query parameters are `page` (default `1`), `size` (default `20`, maximum `100`), optional `status` (`PENDING_RECEIVER`, `PENDING_ULMD`, `COMPLETED`, `REJECTED`), and optional UUID `asset_id`. `POST` returns `201 Created`; reads and successful state transitions return `200 OK`.
+
+The API returns `401` when unauthenticated, `403` for a role or laboratory-scope violation, `404` for an unknown asset/transfer, `409` for an invalid state, non-operational asset, or unassigned/invalid destination manager, and `422` for malformed input or a destination room outside the selected destination laboratory. The service locks affected asset, transfer, laboratory, and room rows while validating and transitioning. Transfer history retains source and destination room identifiers; hierarchy parent reassignment is blocked while transfer records reference the affected laboratory or room.
 
 ---
 

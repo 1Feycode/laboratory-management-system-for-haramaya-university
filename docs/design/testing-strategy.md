@@ -72,7 +72,7 @@ async def client(db_session):
 
 ---
 
-## 3. High-Priority Test Cases to Implement in Phase 3
+## 3. High-Priority Test Cases
 
 ### 1. Asset & QR Lifecycle Tests
 - `test_create_asset_with_unique_code`: Asserts that an asset receives an auto-generated code conforming to `HU-{COLLEGE}-{DEPT}-{SEQ}`.
@@ -84,8 +84,10 @@ async def client(db_session):
 - `test_maintenance_log_and_closure`: Logging repair actions and custodian sign-off restores the asset to `OPERATIONAL`.
 
 ### 3. Transfer State Machine Tests
-- `test_dual_approval_transfer_flow`: Validates transition across `PENDING_RECEIVER` -> `PENDING_ULMD` -> `COMPLETED`, verifying that location foreign keys update accurately.
-- `test_defective_asset_cannot_transfer`: Attempting to transfer an asset in `UNDER_MAINTENANCE` returns HTTP 409.
+- `tests/test_transfers.py::test_transfer_requires_dual_acceptance_and_preserves_location_history`: Verifies state transitions, origin retention before approval, final location update, audit history, and the active-transfer metadata lock.
+- `tests/test_transfers.py::test_transfer_rejects_invalid_scope_and_restores_asset`: Verifies room/laboratory integrity, receiver scope, rejection notes, and restoration at the origin.
+- `tests/test_transfers.py::test_non_operational_asset_cannot_start_transfer`: Confirms only `OPERATIONAL` assets can enter a transfer.
+- `tests/test_transfers.py::test_failed_final_commit_rolls_back_transfer_and_location`: Confirms a failed commit leaves transfer status, asset location, and asset status unchanged.
 
 ### 4. Security & Audit Immutability Tests
 - `test_unauthenticated_requests_blocked`: Accessing protected endpoints without a Bearer token returns HTTP 401.

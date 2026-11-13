@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.models.asset import Asset
+from app.models.asset_transfer import AssetTransfer
 from app.models.organization import College, Department, Laboratory, Room
 from app.models.user import User
 from app.schemas.organization import (
@@ -377,10 +378,18 @@ async def update_laboratory(
                     Asset.laboratory_id == record.id
                 )
             )
-            if asset_count:
+            transfer_count = await session.scalar(
+                select(func.count(AssetTransfer.id)).where(
+                    or_(
+                        AssetTransfer.origin_laboratory_id == record.id,
+                        AssetTransfer.target_laboratory_id == record.id,
+                    )
+                )
+            )
+            if asset_count or transfer_count:
                 raise HTTPException(
                     status_code=409,
-                    detail="Laboratory department cannot change while it has registered assets",
+                    detail="Laboratory department cannot change while assets or transfer history reference it",
                 )
     if changes.get("manager_id"):
         await _ensure_exists(session, User, changes["manager_id"], "Manager")
@@ -395,7 +404,7 @@ async def delete_laboratory(session: AsyncSession, record_id: uuid.UUID) -> None
         session,
         delete(Laboratory).where(Laboratory.id == record_id),
         missing_detail="Laboratory not found",
-        conflict_detail="Laboratory is referenced by rooms or assets and cannot be deleted",
+        conflict_detail="Laboratory is referenced by rooms, assets, or transfer history and cannot be deleted",
     )
     logger.info("hierarchy.laboratory_deleted", extra={"laboratory_id": str(record_id)})
 
@@ -476,10 +485,18 @@ async def update_room(
             asset_count = await session.scalar(
                 select(func.count(Asset.id)).where(Asset.room_id == record.id)
             )
-            if asset_count:
+            transfer_count = await session.scalar(
+                select(func.count(AssetTransfer.id)).where(
+                    or_(
+                        AssetTransfer.origin_room_id == record.id,
+                        AssetTransfer.target_room_id == record.id,
+                    )
+                )
+            )
+            if asset_count or transfer_count:
                 raise HTTPException(
                     status_code=409,
-                    detail="Room laboratory cannot change while assets are assigned to the room",
+                    detail="Room laboratory cannot change while assets or transfer history reference it",
                 )
     for field, value in changes.items():
         setattr(record, field, value)

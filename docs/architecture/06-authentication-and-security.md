@@ -80,6 +80,10 @@ sequenceDiagram
 
 The approved matrix does not specify which roles may administer asset categories. Current category create/update/delete endpoints enforce `ULMD_ADMIN`, and the frontend shows the management page only to that role. Treat this as a provisional least-privilege implementation restriction, not an approved permission decision; do not broaden it until ULMD confirms the policy. Category activation/deactivation is not modeled.
 
+### Stage 5 transfer enforcement
+
+Transfer creation is restricted to `ULMD_ADMIN` and the designated manager of the origin laboratory. Receiver acceptance is restricted to `ULMD_ADMIN` or the designated manager of the target laboratory; only `ULMD_ADMIN` can perform final approval or reject a transfer awaiting approval. A target Lab Manager may reject a transfer awaiting receipt. Transfer listing and detail reads are available to `ULMD_ADMIN`, `AUDITOR`, and `LAB_MANAGER`; lab managers are limited to transfers whose origin or destination is a laboratory they currently manage. Every transition is revalidated in the backend, regardless of frontend visibility.
+
 ---
 
 ## 4. Security Implementation Rules

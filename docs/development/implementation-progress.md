@@ -1,5 +1,34 @@
 # Implementation Progress
 
+## Stage 5: Asset Assignment and Transfer
+
+**Status:** Implemented and verified
+**Completed:** 2026-11-13
+
+### Delivered
+
+- Implemented the ERD-approved `AssetTransfer` model and additive Alembic revision `20261113_04_asset_transfers`, with only the approved transfer columns, status check, indexes, and restrictive foreign keys. No prior migration was modified.
+- Kept initial assignment within the existing asset-registration workflow; the `ASSET_CREATED` snapshot records its initial location. No unapproved assignment table/API was added.
+- Added transfer initiation, destination acceptance, rejection, ULMD approval, paginated/filterable transfer history, and transfer detail APIs. Lab Manager actions are checked against the designated origin or destination laboratory; final approval is restricted to `ULMD_ADMIN`.
+- Enforced the approved state flow: an operational asset is locked as `TRANSFER_PENDING` while retaining its current location; receiver acceptance advances the transfer to `PENDING_ULMD`; final approval moves the current asset location and restores `OPERATIONAL`; rejection restores the original operational state and location.
+- Kept transfer rows, asset status/location updates, and JSONB audit snapshots in one transaction. Transfer state history is read from the append-only audit log; no history columns or separate assignment table were invented.
+- Added destination room/laboratory validation and required an active designated destination Lab Manager when a request is initiated. Lab Managers can view only transfers involving laboratories they currently manage; `ULMD_ADMIN` and `AUDITOR` have university-wide read access.
+- Blocked asset metadata edits while a transfer is active. Prevented laboratory/room parent reassignment when transfer history references those records, preserving the historical hierarchy.
+- Added the React `/transfers` queue, initiation form, role-aware accept/reject/approve controls, pagination/status filtering, and transfer history on the asset passport.
+- Updated the API, database, security, UI/UX, traceability, README, and implementation-progress documentation. No Stage 6 functionality was started.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| Transfer-focused backend tests | Passed; 5 tests cover receiver and ULMD rejection, the approval flow, source/destination preservation, scope/validation, defective-asset blocking, and transaction rollback. |
+| Full backend suite | Passed; 32 tests across Stages 1–5. |
+| Frontend production build | Passed with TypeScript and Vite. |
+| Alembic graph | Passed; `20261113_04` is the sole head after `20261113_03`. |
+| Migration SQL review | Passed; generated SQL creates only the approved transfer table and indexes and does not alter prior tables or migration history. |
+| Existing PostgreSQL database | Passed; the additive `20261113_04` migration was applied to the existing PostgreSQL 15 container after the full test suite passed. `alembic current` reports `20261113_04`; `alembic check` reports no pending schema operations. |
+| Application data | Preserved; no asset, user, hierarchy, or audit rows were created, changed, or deleted. Tests used only the isolated `_test` database. |
+
 ## Stage 4: Asset Management
 
 **Status:** Implemented and verified
@@ -28,7 +57,7 @@
 - **Location exception:** BR-004 requires one current room and laboratory, while the possible shared-instrument note defines no exception workflow or persisted authorization. Existing parent validation remains; no multi-location relationship or bypass was added. Stakeholder approval is required before any exception.
 - **Migration/data preservation:** no Alembic revision was needed for these decision outcomes. No application-database records or existing migration history were changed.
 - **Audit user foreign key:** `audit_logs.user_id ON DELETE SET NULL` would require changing an audit row, which the append-only trigger blocks. Current user management deactivates accounts and exposes no physical deletion. Production DB role hardening is still required because a database owner/superuser can disable triggers.
-- Only asset and category mutations are recorded in the Stage 4 audit slice. Audit events for authentication, user changes, transfers, maintenance, and calibration, plus audit browsing, are not implemented here.
+- At Stage 4 completion, only asset and category mutations were recorded in the audit slice. Stage 5 adds same-transaction transfer and related asset status/location events. Audit events for authentication, user changes, maintenance, and calibration, plus general audit browsing, remain unimplemented.
 
 ### Verification
 

@@ -125,6 +125,9 @@ class Asset(Base):
     category: Mapped[AssetCategory] = relationship(back_populates="assets")
     laboratory: Mapped["Laboratory"] = relationship(back_populates="assets")
     room: Mapped["Room"] = relationship(back_populates="assets")
+    transfers: Mapped[list["AssetTransfer"]] = relationship(
+        back_populates="asset", passive_deletes="all"
+    )
 
 
 class AssetAuditLog(Base):

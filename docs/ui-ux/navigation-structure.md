@@ -58,6 +58,8 @@ The implemented hierarchy screen is restricted to `ULMD_ADMIN` and provides tabs
 
 The Stage 4 asset list and passport are available to all authenticated roles. Registration and metadata editing are guarded for `ULMD_ADMIN` and `LAB_MANAGER`; the backend additionally verifies that a manager is assigned to the asset's laboratory. The QR link-entry route requires authentication, resolves the URL's asset code, and redirects to the passport; the original path and query are preserved through login. Asset-category administration is currently `ULMD_ADMIN` only as a provisional restriction pending policy confirmation.
 
+Stage 5 implements `/transfers` for `ULMD_ADMIN`, `LAB_MANAGER`, and read-only `AUDITOR`. Lab Managers see only transfers involving laboratories they currently manage. Initiation, destination acceptance/rejection, and ULMD approval controls are displayed by role and transfer status; the API independently checks the actor's current designated-laboratory relationship.
+
 ---
 
 ## 3. Route Guard & Authorization Architecture

@@ -62,7 +62,7 @@ This document details the layout, data elements, user interactions, and visual s
 - The approved data dictionary does not define an `asset_name` field; the current UI therefore identifies equipment by model number and manufacturer. It does not invent a free-text equipment-name attribute.
 - `ULMD_ADMIN` and the designated manager of the selected laboratory can register assets. The form accepts only approved asset fields, assigns the asset code on the server, and starts the asset in `OPERATIONAL`. Editing does not expose the asset code, status, or location.
 - The passport shows the approved identity, category/calibration defaults, current college/department/laboratory/room, recorded purchase/commissioning/warranty/calibration dates, and a generated SVG QR label.
-- Maintenance, calibration, transfer-history, and custody-history tabs/actions remain planned for their later stages. Stage 4 does not claim that those history datasets exist.
+- Maintenance and calibration history/actions remain planned for later stages. Custody transfer history and actions are implemented in Stage 5 as described below.
 - QR labels contain the universal asset code while `ASSET_PUBLIC_BASE_URL` is unset. Once the deployment owner confirms the public frontend origin, this optional setting makes new QR labels link to `/assets/scan?code=...`; that protected route resolves and opens the asset passport. The camera scanner accepts both URL and code-only payloads. The QR image endpoint and lookup API remain authenticated. No production origin is currently configured.
 - Category create/update/delete endpoints and the management-page visibility are currently restricted to `ULMD_ADMIN`. This is a provisional least-privilege implementation because the approved role matrix does not define category administration; stakeholder confirmation is required. The category schema has no active/inactive field, and deletion is blocked when assets reference a category.
 
@@ -85,16 +85,19 @@ This document details the layout, data elements, user interactions, and visual s
 ### Screen 5: Inter-Laboratory Custody Transfer Portal (`/transfers`)
 - **Target Roles:** `LAB_MANAGER`, `ULMD_ADMIN`, `AUDITOR` (read-only).
 - **Layout Structure:**
-  - **Two Tab Views:** (1) "Outgoing Transfers", (2) "Incoming Transfers Awaiting Acceptance".
+  - **Transfer Queue:** A paginated list with a status filter, showing outgoing and incoming custody transfers visible to the current role.
   - **Transfer Initiation Form:**
-    - Asset Code selector (only allows selecting assets in `OPERATIONAL` condition).
-    - Destination Laboratory dropdown.
+    - Asset code input resolved against the asset register; the server permits initiation only for an `OPERATIONAL` asset.
+    - Destination Laboratory and Room dropdowns; the server validates that the room belongs to that laboratory and that a designated active Lab Manager exists.
     - Justification text area.
-  - **Multi-Step Status Stepper:**
-    - Step 1: *Initiated by Origin Lab* (Completed).
-    - Step 2: *Inspected & Accepted by Destination Lab* (Pending/Completed).
-    - Step 3: *Approved by ULMD Directorate* (Pending/Completed).
+  - **Transfer History:** Shows origin and destination laboratory/room, initiating actor, reason, current status, and timestamped audit-backed status events.
+  - **Decision Actions:** Authorized users can accept receipt, reject an active transfer with a required note, or approve final relocation as ULMD.
   - **Role Restrictions:** `AUDITOR` can view transfer history and status only; initiation, acceptance, rejection, and approval controls are hidden.
+
+#### Stage 5 implementation scope
+- `/transfers` is implemented as one paginated, status-filtered queue with an initiation form. The API scopes Lab Manager reads to transfers involving laboratories they currently manage; the UI is available to `ULMD_ADMIN`, `LAB_MANAGER`, and read-only `AUDITOR`.
+- Transfer state is displayed from immutable audit snapshots. Initiation preserves the asset's origin location and marks it `TRANSFER_PENDING`; only final ULMD approval changes its current laboratory/room. Rejection returns the asset to `OPERATIONAL` at its origin.
+- Asset passports display the recorded source/destination locations and transition history for roles permitted to read transfers. No assignment table or location exception was added.
 
   ---
 

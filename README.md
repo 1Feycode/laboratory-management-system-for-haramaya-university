@@ -22,9 +22,9 @@ The system bridges decentralized laboratory ownership with the centralized stand
 - [x] **Stage 2: Authentication and User Management** *(Complete: local JWT auth, role guards, and ULMD user provisioning)*
 - [x] **Stage 3: Organizational Structure** *(Implemented: colleges, departments, laboratories, and rooms)*
 - [x] **Stage 4: Asset Management** *(Implemented and verified: asset register, categories, QR lookup, and audit history)*
-- [ ] **Phase 5: Verification, Validation & Deployment** *(Upcoming)*
+- [x] **Stage 5: Asset Assignment and Transfer** *(Implemented: dual approval, location history, and transfer audit events)*
 
-> **Notice:** Stages 1–4 provide the foundation, identity/access, organizational hierarchy, and asset register. Custody transfers, maintenance work orders, calibration workflows, and business reporting are not implemented. See the [implementation progress report](docs/development/implementation-progress.md).
+> **Notice:** Stages 1–5 provide the foundation, identity/access, organizational hierarchy, asset register, and custody transfer workflow. Maintenance work orders, calibration workflows, and business reporting are not implemented. See the [implementation progress report](docs/development/implementation-progress.md).
 
 ---
 
@@ -52,7 +52,7 @@ The system bridges decentralized laboratory ownership with the centralized stand
 - **Target Host:** Windows 10/11 laptop (8 GB RAM constraint); PostgreSQL runs in Docker Desktop
 - **Version Control:** Git & GitHub
 
-## Local Setup and Stage 4
+## Local Setup and Stage 5
 
 The backend runs directly on Windows and connects to the PostgreSQL container through the published loopback port (`127.0.0.1`).
 
@@ -78,7 +78,7 @@ The backend runs directly on Windows and connects to the PostgreSQL container th
    ```powershell
    .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
    ```
-   The migrations create the approved identity, organizational hierarchy, asset category, asset, and append-only audit tables, and the initial migration seeds the five approved roles. The interactive CLI provisions the first `ULMD_ADMIN`; no default account or password is created.
+   The migrations create the approved identity, organizational hierarchy, asset category, asset, transfer, and append-only audit tables, and the initial migration seeds the five approved roles. The interactive CLI provisions the first `ULMD_ADMIN`; no default account or password is created.
    API documentation is available at `http://127.0.0.1:8000/docs`; liveness is at `/health` and database connectivity at `/health/ready`.
 5. In another terminal, if `frontend/.env.local` does not already exist, copy `frontend/.env.example` to it; preserve any existing local settings. Then start React:
    ```powershell
@@ -104,6 +104,10 @@ Asset QR images contain the asset code unless a confirmed public frontend origin
 ### Stage 4 Decision Follow-up
 
 The unconditional manufacturer/serial uniqueness constraint remains unchanged, so a decommissioned asset's serial pair is still reserved. The condemnation-reference schema and decommissioning authority remain unresolved, as does the approved role policy for category administration. Ordinary assets retain one laboratory and one room under BR-004; no shared-location exception is implemented. Full evidence, recommendations, and stakeholder approvals needed are recorded in [Phase 2 open decisions](docs/design/phase-2-open-decisions.md#2-stage-4-decision-review) and the [implementation progress report](docs/development/implementation-progress.md).
+
+### Stage 5 Asset Assignment and Transfer
+
+Initial assignment remains part of asset registration and is captured in its creation audit snapshot. Open **Custody transfers** to initiate a later move, accept receipt at the destination, and complete final ULMD approval. The asset remains at its origin and is locked as `TRANSFER_PENDING` until approval or rejection. Completed transfer rows preserve the origin and destination laboratory/room IDs; audit snapshots preserve each status transition and location change. No separate assignment table is part of the approved schema. `ULMD_ADMIN`, designated `LAB_MANAGER`, and read-only `AUDITOR` roles can access the transfer view; manager scope and every action are independently checked by the API. See the [transfer API specification](docs/api/api-specification.md#39-custody-transfer-endpoints), [transfer workflow](docs/workflows/asset-transfer.mmd), and [implementation progress report](docs/development/implementation-progress.md).
 
 ### Backend Verification
 
@@ -175,4 +179,5 @@ If FastAPI is later run inside Compose, configure its database host as the Compo
 - **Stage 2: Authentication and User Management** - Complete; see the authentication design and progress report for the in-memory refresh-token revocation limitation.
 - **Stage 3: Organizational Structure** - Complete for the approved college/department/laboratory/room entities.
 - **Stage 4: Asset Management** - Complete for asset registration, categories, QR lookup, search, and asset audit snapshots.
-- **Next Stage: Custody Transfers, Maintenance, and Calibration** - Not started; do not infer those workflows are available from the Stage 4 asset register.
+- **Stage 5: Asset Assignment and Transfer** - Complete for the approved dual-authorization transfer workflow and location history.
+- **Next Stage: Maintenance and Calibration** - Not started; do not infer those workflows are available from the asset register or transfer module.
