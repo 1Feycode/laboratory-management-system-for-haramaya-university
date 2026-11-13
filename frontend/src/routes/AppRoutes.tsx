@@ -10,6 +10,7 @@ import FoundationPage from "../pages/FoundationPage";
 import HierarchyManagementPage from "../pages/HierarchyManagementPage";
 import LoginPage from "../pages/LoginPage";
 import UserManagementPage from "../pages/UserManagementPage";
+import TransferPage from "../pages/TransferPage";
 import { ProtectedRoute, PublicOnlyRoute, RoleGuard } from "./ProtectedRoute";
 
 export default function AppRoutes() {
@@ -28,6 +29,13 @@ export default function AppRoutes() {
           <Route path="/assets" element={<AssetListPage />} />
           <Route path="/assets/scan" element={<AssetQrRedirectPage />} />
           <Route path="/assets/:assetId" element={<AssetDetailPage />} />
+          <Route
+            element={
+              <RoleGuard roles={["ULMD_ADMIN", "LAB_MANAGER", "AUDITOR"]} />
+            }
+          >
+            <Route path="/transfers" element={<TransferPage />} />
+          </Route>
           <Route
             element={<RoleGuard roles={["ULMD_ADMIN", "LAB_MANAGER"]} />}
           >

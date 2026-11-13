@@ -114,7 +114,7 @@ export default function AssetListPage() {
       department_id: departmentId || undefined,
       laboratory_id: laboratoryId || undefined,
       category_id: categoryId || undefined,
-      status,
+      status: status || undefined,
       sort_by: sortBy,
       sort_order: sortOrder,
     })

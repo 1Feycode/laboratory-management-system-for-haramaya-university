@@ -86,7 +86,7 @@ export interface AssetFilters {
   department_id?: string;
   laboratory_id?: string;
   category_id?: string;
-  status?: AssetStatus | "";
+  status?: AssetStatus;
   sort_by: "asset_code" | "created_at" | "model_number" | "operational_status" | "purchase_date";
   sort_order: "asc" | "desc";
 }
@@ -214,6 +214,7 @@ export interface LaboratoryOption {
   department_name: string;
   college_name: string;
   name: string;
+  manager_id: string | null;
 }
 
 export interface RoomOption {
