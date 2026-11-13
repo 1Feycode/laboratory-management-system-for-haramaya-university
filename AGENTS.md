@@ -4,7 +4,7 @@
 - **Project:** Laboratory Asset Management and Maintenance Tracking System for Haramaya University
 - **Scope:** Academic and research laboratory asset lifecycle, QR identification, preventive/corrective maintenance workflows, and custody transfers across 90–150+ laboratories.
 - **Institutional Context:** Haramaya University (Dire Dawa, Ethiopia). Central governance by the University Laboratories Management Directorate (ULMD, Central Lab Building Office 34) and Estate Development & Facilities Management Directorate (EFMD).
-- **Current Lifecycle Stage:** Documentation and System Design (Phase 1 & Phase 2 Complete; Phase 3 Implementation Pending).
+- **Current Lifecycle Stage:** Phase 1 and Phase 2 documentation complete; Stages 1 (foundation) and 2 (authentication/user management) complete. Stage 3 business modules remain pending.
 
 ---
 
@@ -13,54 +13,53 @@
 - **Database:** PostgreSQL 15+ (Relational 3NF with JSONB audit logging).
 - **Frontend:** React 18, Vite, TypeScript, Tailwind CSS, Lucide Icons, HTML5-QRCode.
 - **Authentication:** JWT Bearer (OAuth2 Password flow) with salted bcrypt passwords.
-- **Target Hardware Constraint:** Windows 10/11 laptop with 8 GB RAM. Avoid heavy containerization or multi-VM setups. Prefer native local processes (FastAPI via Uvicorn, React via Vite, local PostgreSQL service).
+- **Target Hardware Constraint:** Windows 10/11 laptop with 8 GB RAM. Run PostgreSQL 15+ in the user's Docker Desktop container with a persistent named volume; run FastAPI/Uvicorn and React/Vite as native Windows processes. Avoid extra containers, services, and multi-VM setups.
 
 ---
 
 ## Standard Development & Verification Commands
 
-### Backend Commands (Planned for Phase 3)
+### Stage 1 Development Commands
 ```bash
+# From the repository root, after copying .env.example to .env and setting a local password
+docker compose up -d db
+
 # Navigate to backend directory
 cd backend
 
 # Create & activate Python virtual environment (Windows)
-python -m venv venv
-venv\Scripts\activate
+python -m venv .venv
+.venv\Scripts\activate
 
 # Install dependencies
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
 # Run database migrations
-alembic upgrade head
+python -m alembic upgrade head
 
 # Launch development API server (Hot reload)
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 # Run automated tests
-pytest tests/ -v
+python -m pytest tests/ -v
 
-# Run single test file or specific test case
-pytest tests/test_assets.py -v
-pytest tests/test_transfers.py -k "test_transfer_approval_state"
+# Run the Stage 1 health checks
+python -m pytest tests/test_health.py -v
 ```
 
-### Frontend Commands (Planned for Phase 4)
+### Frontend Commands
 ```bash
 # Navigate to frontend directory
 cd frontend
 
 # Install Node dependencies
-npm install
+npm.cmd install
 
 # Run development server
-npm run dev
-
-# Run unit and component tests
-npm run test
+npm.cmd run dev
 
 # Build production bundle
-npm run build
+npm.cmd run build
 ```
 
 ---

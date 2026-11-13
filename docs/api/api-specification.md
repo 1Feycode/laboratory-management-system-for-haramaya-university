@@ -23,7 +23,9 @@ This document provides complete request and response schemas, parameters, and er
       "email": "dr.meseret@haramaya.edu.et",
       "full_name": "Dr. Meseret Girma",
       "role": "ULMD_ADMIN",
-      "department_id": null
+      "department_id": null,
+      "is_active": true,
+      "created_at": "2026-11-13T10:00:00Z"
     }
   }
   ```
@@ -32,6 +34,70 @@ This document provides complete request and response schemas, parameters, and er
   - `403 Forbidden`: Account is inactive.
 
 ---
+
+### 1.2 `POST /api/v1/auth/refresh`
+- **Description:** Rotates the refresh token and issues a new access token.
+- **Security:** Refresh token in the `RefreshToken` HttpOnly cookie.
+- **Request:** No body. The browser sends the cookie with credentials enabled.
+- **Response (`200 OK`):** The login access-token and profile envelope; a replacement refresh cookie is set.
+- **Errors:** `401 Unauthorized` for a missing, invalid, expired, inactive-user, or previously used refresh token; `429 Too Many Requests` when rate limited.
+
+### 1.3 `POST /api/v1/auth/logout`
+- **Description:** Revokes the supplied refresh token when valid and clears the refresh cookie.
+- **Security:** Refresh cookie optional, so logout remains available after access-token expiry.
+- **Response:** `204 No Content`; repeated logout requests are safe.
+
+### 1.4 `GET /api/v1/auth/me`
+- **Description:** Returns the currently authenticated active user.
+- **Security:** Bearer access token.
+- **Response (`200 OK`):**
+  ```json
+  {
+    "id": "e44d5162-8e10-41ff-8c10-09252c442e91",
+    "email": "dr.meseret@haramaya.edu.et",
+    "full_name": "Dr. Meseret Girma",
+    "role": "ULMD_ADMIN",
+    "department_id": null,
+    "is_active": true,
+    "created_at": "2026-11-13T10:00:00Z"
+  }
+  ```
+- **Errors:** `401 Unauthorized` for missing, invalid, expired, or inactive-user access.
+
+### 1.5 User Management Endpoints
+All user-management endpoints require the `ULMD_ADMIN` role. Public self-registration is not provided.
+
+#### `GET /api/v1/users`
+- **Description:** Returns paginated accounts; supports `page`, `size` (maximum 100), `role`, and `department_id`.
+- **Response:** Standard page envelope with safe user profiles. Password hashes and login-lockout fields are never returned.
+
+#### `GET /api/v1/users/departments`
+- **Description:** Lists existing department IDs, names, and codes for assigning a scoped account.
+- **Response:** JSON array; an empty array is valid until hierarchy records are added.
+
+#### `GET /api/v1/users/{id}`
+- **Description:** Retrieves a safe user profile.
+- **Errors:** `404 Not Found` when the account does not exist.
+
+#### `POST /api/v1/users`
+- **Description:** Provisions a local account. Only the five canonical roles are accepted.
+- **Request (`application/json`):**
+  ```json
+  {
+    "email": "lab.manager@haramaya.edu.et",
+    "full_name": "Laboratory Manager",
+    "password": "InitialPass123",
+    "role": "LAB_MANAGER",
+    "department_id": "d027f6e7-c62d-4d7a-8fbb-5481d9f8ce32"
+  }
+  ```
+- **Response:** `201 Created` with a safe profile; the password is immediately bcrypt-hashed and never returned.
+- **Errors:** `409 Conflict` for duplicate email; `422 Unprocessable Entity` for invalid fields, an unknown department, or a missing department for `LAB_MANAGER` / `LAB_TECH`.
+
+#### `PATCH /api/v1/users/{id}`
+- **Description:** Updates `email`, `full_name`, `role`, `department_id`, and/or `is_active`.
+- **Request:** Partial JSON object containing at least one supported field. Password updates are not part of this endpoint.
+- **Errors:** `404 Not Found`; `409 Conflict` for duplicate email or attempting to demote/deactivate the last active `ULMD_ADMIN`; `422 Unprocessable Entity` for invalid assignments.
 
 ## 2. Asset Management Endpoints
 

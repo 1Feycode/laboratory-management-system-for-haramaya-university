@@ -6,6 +6,12 @@ This document details the layout, data elements, user interactions, and visual s
 
 ## 1. Screen Catalog
 
+### Screen 0: Sign-In (`/login`)
+- **Target Roles:** All five canonical roles; public route before authentication.
+- **Layout:** University/system identity, institutional email input, password input, and one primary sign-in action. No self-registration or password-reset link is exposed in this stage.
+- **Behavior:** Submits form-encoded credentials; successful sign-in stores the short-lived access token in memory and keeps the refresh token in an HttpOnly cookie. Failed credentials use a generic message; inactive-account and rate-limit responses receive actionable messages.
+- **Navigation:** Successful sign-in returns the user to the originally requested protected route when it is a local application path, otherwise to `/dashboard`.
+
 ### Screen 1: Executive & Operational Dashboard (`/dashboard`)
 - **Target Roles:** `ULMD_ADMIN`, `AUDITOR` (department-scoped where applicable), `LAB_MANAGER`.
 - **Layout Structure:**
@@ -80,3 +86,12 @@ This document details the layout, data elements, user interactions, and visual s
     - Step 2: *Inspected & Accepted by Destination Lab* (Pending/Completed).
     - Step 3: *Approved by ULMD Directorate* (Pending/Completed).
   - **Role Restrictions:** `AUDITOR` can view transfer history and status only; initiation, acceptance, rejection, and approval controls are hidden.
+
+  ---
+
+  ### Screen 6: User Provisioning (`/admin/users`)
+  - **Target Role:** `ULMD_ADMIN` only; the API independently enforces this restriction.
+  - **Layout:** Account creation/edit form and a paginated table showing full name, institutional email, canonical role, department assignment, and active status.
+  - **Actions:** Provision an account with an initial password; edit profile, role, or department; activate/deactivate an account. There is no hard-delete action. The last active `ULMD_ADMIN` cannot be demoted or deactivated.
+  - **Role Assignment:** The role selector contains only `ULMD_ADMIN`, `MAINTENANCE_TECH`, `LAB_MANAGER`, `LAB_TECH`, and `AUDITOR`. `LAB_MANAGER` and `LAB_TECH` require an existing department. Passwords must be at least 10 characters with a letter and digit.
+  - **States:** Loading, empty, success confirmation, and validation/API error states are shown explicitly. Password values and hashes are never shown in the account table.

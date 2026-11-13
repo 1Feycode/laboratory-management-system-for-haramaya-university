@@ -18,11 +18,12 @@ The system bridges decentralized laboratory ownership with the centralized stand
 ## Current Development Phase
 - [x] **Phase 1: Requirements Engineering & System Analysis** *(Completed)*
 - [x] **Phase 2: System Design & Architecture Specification** *(Completed)*
-- [ ] **Phase 3: Database & Backend Implementation** *(Pending Review & Approval)*
-- [ ] **Phase 4: Frontend Implementation & Integration** *(Upcoming)*
+- [x] **Stage 1: Project Foundation** *(Complete: application foundation and Docker PostgreSQL verified)*
+- [x] **Stage 2: Authentication and User Management** *(Complete: local JWT auth, role guards, and ULMD user provisioning)*
+- [ ] **Stage 3: Institutional Hierarchy and Business Modules** *(Not started)*
 - [ ] **Phase 5: Verification, Validation & Deployment** *(Upcoming)*
 
-> **Notice:** No application code has been implemented in this phase. The repository currently contains the verified software specifications, architectural blueprints, database dictionaries, API contracts, workflow models, and traceability matrices.
+> **Notice:** Stages 1 and 2 provide the application foundation and identity/access features only. Asset, maintenance, calibration, reporting, and hierarchy management are not implemented. See the [implementation progress report](docs/development/implementation-progress.md).
 
 ---
 
@@ -34,10 +35,10 @@ The system bridges decentralized laboratory ownership with the centralized stand
 - **Schema Validation & Settings:** Pydantic v2
 - **ORM / Persistence:** SQLAlchemy 2.0
 - **Database Migrations:** Alembic
-- **Security & Authentication:** JWT (OAuth2 Password Bearer) with Passlib (bcrypt)
+- **Security & Authentication:** JWT (OAuth2 Password Bearer) with bcrypt password hashing (cost 12)
 
 ### Database
-- **Engine:** PostgreSQL 15+ (Relational 3NF with JSONB audit logging)
+- **Engine:** PostgreSQL 15+ in Docker Desktop for local development (Relational 3NF with JSONB audit logging)
 
 ### Frontend
 - **Framework / Bundler:** React 18 (TypeScript) with Vite
@@ -47,8 +48,59 @@ The system bridges decentralized laboratory ownership with the centralized stand
 - **HTTP Client:** Axios with JWT interceptors
 
 ### Development & Operational Profile
-- **Target Host:** Windows 10/11 laptop (8 GB RAM constraint)
+- **Target Host:** Windows 10/11 laptop (8 GB RAM constraint); PostgreSQL runs in Docker Desktop
 - **Version Control:** Git & GitHub
+
+## Local Setup and Stage 2 Authentication
+
+The backend runs directly on Windows and connects to the PostgreSQL container through the published loopback port (`127.0.0.1`).
+
+1. If `.env` does not already exist, copy `.env.example` to `.env`; preserve any existing `.env`. Set a strong local `POSTGRES_PASSWORD` and the same password in `DATABASE_URL` (URL-encode special characters if used). Set `SECRET_KEY` to a random value of at least 32 bytes (for example, generate one with `python -c "import secrets; print(secrets.token_urlsafe(64))"`).
+2. Start PostgreSQL from the repository root:
+   ```powershell
+   docker compose up -d db
+   docker compose ps
+   ```
+   Wait until the `db` service reports `healthy`. Its data is kept in the named volume `hu_lab_postgres_data`; do not remove that volume for routine development.
+3. Install the backend and apply migrations:
+   ```powershell
+   cd backend
+   python -m venv .venv
+   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+   .\.venv\Scripts\python.exe -m alembic upgrade head
+   ```
+   On first setup only, provision the initial administrator interactively:
+   ```powershell
+   .\.venv\Scripts\python.exe -m app.cli create-admin
+   ```
+4. Start FastAPI in the backend terminal:
+   ```powershell
+   .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+   ```
+   The initial migration creates only the approved identity tables (`colleges`, `departments`, `roles`, `users`) and seeds the five approved roles. The interactive CLI provisions the first `ULMD_ADMIN`; no default account or password is created.
+   API documentation is available at `http://127.0.0.1:8000/docs`; liveness is at `/health` and database connectivity at `/health/ready`.
+5. In another terminal, if `frontend/.env.local` does not already exist, copy `frontend/.env.example` to it; preserve any existing local settings. Then start React:
+   ```powershell
+   cd frontend
+   npm.cmd install
+   npm.cmd run dev
+   ```
+   The local API URL uses `http://localhost:8000` so the browser can send the `SameSite=Lax` refresh cookie.
+6. Open the frontend at `http://localhost:5173`. Sign in with an account provisioned by a ULMD administrator.
+
+### Stage 2 Verification
+
+Run backend tests from `backend/`:
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+```
+Tests use a separate PostgreSQL database named `hu_lab_management_test`, derived from `DATABASE_URL`; they never target the application database. Create that database once if it does not already exist:
+```powershell
+docker compose exec -T db psql -U hu_lab_app -d postgres -c "CREATE DATABASE hu_lab_management_test OWNER hu_lab_app;"
+```
+The test fixtures create and remove tables only in the `_test` database. Do not set `TEST_DATABASE_URL` to the application database.
+
+If FastAPI is later run inside Compose, configure its database host as the Compose service name `db` and use port `5432`; the current Windows-hosted backend uses `127.0.0.1` and the published host port.
 
 ---
 
@@ -102,4 +154,6 @@ The system bridges decentralized laboratory ownership with the centralized stand
 ## Development Roadmap
 - **Phase 1: Requirements Engineering** - Complete. Verified institutional facts and international standards.
 - **Phase 2: Architecture & System Design** - Complete. Comprehensive technical blueprints and specifications.
-- **Phase 3: Implementation Phase** - Commences upon formal review and sign-off of Phase 1 and 2 deliverables.
+- **Stage 1: Project Foundation** - Complete and verified.
+- **Stage 2: Authentication and User Management** - Complete; see the authentication design and progress report for the in-memory refresh-token revocation limitation.
+- **Next Stage: Institutional Hierarchy and Business Modules** - Not started. No asset, transfer, maintenance, or calibration features are present.

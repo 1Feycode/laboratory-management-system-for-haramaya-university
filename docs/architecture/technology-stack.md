@@ -17,7 +17,7 @@ This document documents the approved technology stack for the Laboratory Asset M
 | **Frontend Build Tool**| **Vite** | 5.0+ | Development server and production bundler. | Sub-second hot module replacement (HMR); lightweight memory footprint on 8 GB RAM machines; fast build times. |
 | **Styling & Layout** | **Tailwind CSS** | 3.4+ | Utility-first responsive CSS styling. | Rapid responsive UI development; zero runtime CSS overhead; easily customized for university branding. |
 | **Hardware Scanning** | **HTML5-QRCode** | 2.3+ | In-browser camera barcode/QR code reader. | Cross-platform camera access without requiring native mobile wrappers; works in standard mobile browsers. |
-| **Authentication** | **JWT / Passlib (bcrypt)**| PyJWT 2.8+ / Bcrypt 4.1+ | Stateless token-based security and password hashing. | Cryptographically secure password hashing; stateless authorization tokens with role claims; low server memory overhead. |
+| **Authentication** | **JWT / bcrypt**| PyJWT 2.8+ / bcrypt 4.1+ | Stateless token-based security and password hashing. | Cryptographically secure password hashing; stateless authorization tokens with role claims; low server memory overhead. Stage 2 uses the maintained `bcrypt` library directly rather than the older Passlib wrapper; bcrypt cost 12 remains the approved format. |
 
 ---
 

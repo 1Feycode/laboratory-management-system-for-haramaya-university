@@ -44,11 +44,16 @@ All collection endpoints support standardized query parameters:
 | Method | Endpoint Path | Functionality | Permitted Roles | Request Payload | Response |
 |---|---|---|---|---|---|
 | `POST` | `/api/v1/auth/login` | User login & token generation | Public | Form: `username`, `password` | Access Token (JWT), User Object |
-| `POST` | `/api/v1/auth/refresh` | Rotate access token | Public | Cookie / Body: `refresh_token` | New Access Token |
-| `GET` | `/api/v1/auth/me` | Current user profile | Authenticated | None | User profile & permissions |
+| `POST` | `/api/v1/auth/refresh` | Rotate access and refresh tokens | Refresh cookie | HttpOnly cookie | New Access Token and rotated cookie |
+| `GET` | `/api/v1/auth/me` | Current active user profile | Bearer token | None | Safe User profile |
 | `GET` | `/api/v1/users` | List university users | `ULMD_ADMIN` | Query: `role`, `department_id` | Paginated list of users |
 | `POST` | `/api/v1/users` | Provision user account | `ULMD_ADMIN` | `UserCreateSchema` | `201 Created` with User info |
-| `POST` | `/api/v1/auth/logout` | Revoke refresh token / clear cookie | Authenticated | None | `204 No Content` |
+| `GET` | `/api/v1/users/{id}` | View user profile | `ULMD_ADMIN` | Path: user UUID | Safe user profile |
+| `PATCH` | `/api/v1/users/{id}` | Update profile, role, department, or account status | `ULMD_ADMIN` | `UserUpdateSchema` | Updated safe user profile |
+| `GET` | `/api/v1/users/departments` | List department assignment options | `ULMD_ADMIN` | None | Department ID, name, and code |
+| `POST` | `/api/v1/auth/logout` | Revoke refresh token / clear cookie | Refresh cookie optional | None | `204 No Content` |
+
+Stage 2 implements the authentication and user-management endpoints in this table. The other API modules remain planned. User listing follows the shared `page` / `size` envelope; request and response fields are detailed in the [API specification](../api/api-specification.md).
 
 ### Institutional Hierarchy
 | Method | Endpoint Path | Functionality | Permitted Roles | Request Payload | Response |

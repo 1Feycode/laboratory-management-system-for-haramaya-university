@@ -1,5 +1,13 @@
 # 06. Authentication and Security Architecture
 
+## Stage 2 Implementation Notes
+
+- The five canonical roles and the approved `roles` / `users` fields are implemented. The `colleges` and `departments` parent tables are included only to satisfy the approved user foreign key; hierarchy management remains out of scope.
+- User provisioning and role assignment are restricted to `ULMD_ADMIN`. There is no public registration endpoint. The first administrator is provisioned interactively through `python -m app.cli create-admin`.
+- Refresh-token rotation uses an in-process revocation set, an option allowed by ADR-05. It supports the single-process development deployment but does not preserve revoked-token state across restarts or coordinate multiple workers. A persistent token store must be selected before multi-worker or production use.
+- Authentication security events are written to structured application logs. No audit-log table or general business audit module is introduced in this stage.
+- The architecture originally named Passlib as its bcrypt wrapper. Stage 2 uses the maintained `bcrypt` library directly at cost 12; the approved bcrypt format and work factor are unchanged.
+
 ## 1. Threat Model & Security Posture
 The Laboratory Asset Management and Maintenance Tracking System safeguards sensitive institutional assets, equipment location data, and maintenance records.
 
@@ -43,7 +51,8 @@ sequenceDiagram
     User->>API: POST /api/v1/auth/refresh (Cookie: RefreshToken)
     API->>Auth: Verify Refresh Token Signature & DB Status
     Auth->>Auth: Issue New Access Token
-    API-->>User: HTTP 200 OK (New AccessToken)
+    Auth->>Auth: Revoke old refresh token and rotate
+    API-->>User: HTTP 200 OK (New AccessToken + HttpOnly cookie)
 ```
 
 ---
@@ -75,8 +84,8 @@ sequenceDiagram
 
 ### 1. Cryptographic Password Hashing
 ```python
-# Passlib CryptContext configuration
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
+# bcrypt library configuration
+bcrypt.gensalt(rounds=12)
 ```
 
 ### 2. JWT Claims Specification
@@ -86,6 +95,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds
   "email": "dr.meseret@haramaya.edu.et",
   "role": "ULMD_ADMIN",
   "dept_id": null,
+  "jti": "unique-token-id",
   "iat": 1794500000,
   "exp": 1794501800
 }
@@ -106,27 +116,51 @@ app.add_middleware(
 ### 4. Password Policy & Account Lockout
 - Minimum length 10 characters, including at least one letter and one digit; passwords are never truncated.
 - Passwords are hashed with bcrypt cost 12 and compared in constant time.
+- Inputs exceeding bcrypt's 72-byte UTF-8 limit are rejected rather than truncated.
 - Five consecutive failed login attempts set `users.locked_until = NOW() + 15 minutes` and reset `failed_login_attempts` on successful authentication.
 - Lockout responses are intentionally generic (`401 Unauthorized`) to avoid account enumeration.
 
 ### 5. Rate Limiting & Abuse Controls
-- Login and refresh endpoints are rate-limited per IP and per account (for example, 10 requests/minute/IP in production).
-- The MVP may enforce limits in Nginx or a lightweight in-process middleware; Redis is not required.
+- Login and refresh endpoints are rate-limited per IP and account (10 requests per 60-second window). These counters are also in process memory and reset on restart.
+- Stage 2 enforces limits with a lightweight in-process limiter; Redis is not required.
 - Repeated authorization failures are logged to the application log and, where appropriate, to `audit_logs`.
 
 ### 6. Token Revocation & Logout
 - Access tokens are short-lived (30 minutes) and validated statelessly.
+- Each protected request also reloads the account from PostgreSQL, rejects inactive users, and authorizes against the current database role; stale JWT role claims do not grant permissions after a role change.
 - Refresh tokens are rotated on use; the previous token is invalidated.
-- Logout clears the `HttpOnly` refresh cookie and records the event in the audit log.
+- Logout clears the `HttpOnly` refresh cookie and records the event in the structured security log.
 - A database or in-memory deny-list may be used for emergency revocation; the MVP does not require Redis.
+- The current implementation keeps revoked refresh-token IDs in process memory. A restart clears that set, so refresh revocation is not durable; use a persistent store before horizontal scaling or production deployment.
 
 ### 7. Secrets & Configuration
 - `SECRET_KEY`, database credentials, and CORS origins are supplied through environment variables (`.env` locally; server environment in production).
+- `SECRET_KEY` must be a non-placeholder value of at least 32 bytes. Credentialed CORS rejects wildcard origins.
 - Secrets are never committed to Git; `.env.example` contains placeholders only.
 - Production TLS certificates are managed by the ICT Directorate and terminated at Nginx.
 
 ### 8. Audit of Security Events
 The following events generate audit records or structured security logs: successful login, failed login, account lockout, role change, user deactivation, token refresh failure, and unauthorized access attempts. Audit records never contain plaintext passwords or raw tokens.
 
-### 9. File Upload Security (Deferred)
+Stage 2 records these events in structured application logs without passwords or token values. Durable database audit records remain part of the later audit module.
+
+## 9. Implemented Authentication and User API
+
+| Method | Endpoint | Access | Behavior |
+|---|---|---|---|
+| `POST` | `/api/v1/auth/login` | Public, form-encoded | Verifies credentials and returns a 30-minute access JWT; sets a 7-day `HttpOnly`, `SameSite=Lax` refresh cookie. |
+| `POST` | `/api/v1/auth/refresh` | Refresh cookie | Rotates the refresh token and returns a new access JWT and user profile. |
+| `POST` | `/api/v1/auth/logout` | Refresh cookie optional | Revokes the supplied refresh token when valid and clears the cookie. |
+| `GET` | `/api/v1/auth/me` | Bearer access token | Returns the current active user profile. |
+| `GET` | `/api/v1/users` | `ULMD_ADMIN` | Paginated user listing, filterable by role and department. |
+| `GET` | `/api/v1/users/departments` | `ULMD_ADMIN` | Lists department choices for user assignment. |
+| `GET` | `/api/v1/users/{id}` | `ULMD_ADMIN` | Retrieves a provisioned account. |
+| `POST` | `/api/v1/users` | `ULMD_ADMIN` | Creates an account with one canonical role and a hashed initial password. |
+| `PATCH` | `/api/v1/users/{id}` | `ULMD_ADMIN` | Updates profile, role, department, or active status. |
+
+`LAB_MANAGER` and `LAB_TECH` accounts require an existing department assignment. The initial identity migration creates only the approved `colleges`, `departments`, `roles`, and `users` tables and seeds the five canonical roles; it does not create laboratory or asset tables.
+
+During local development the refresh cookie is not marked `Secure` so it can be used over localhost HTTP. Non-development environments mark it `Secure`; all deployed traffic must use HTTPS.
+
+## Deferred: File Upload Security
 Binary attachments (manuals, calibration certificates) are a Release 2 feature. When introduced, uploads must be size-limited, MIME-validated, stored outside the web root, and served through authenticated endpoints. The MVP stores only `certificate_reference` strings.
