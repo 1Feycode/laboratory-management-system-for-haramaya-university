@@ -97,6 +97,8 @@ Stores functional categories of laboratory equipment.
 - **`default_calibration_interval_days`** (`INT`, NOT NULL, DEFAULT 0): Standard interval (e.g., 180, 365).
 - **`created_at`** (`TIMESTAMPTZ`, NOT NULL, DEFAULT `NOW()`): Creation timestamp.
 
+The approved table has no active/inactive status field and the role-permission matrix does not define category mutation permissions. The current `ULMD_ADMIN`-only create/update/delete guards are an implementation restriction pending stakeholder approval, not a confirmed category policy.
+
 ### 3.2 `assets` (Core Equipment Master Record)
 Stores durable laboratory machinery compliant with WHO LQSI and Africa CDC standards.
 - **`id`** (`UUID`, PK): Primary key, default `gen_random_uuid()`.
@@ -124,6 +126,9 @@ Stores durable laboratory machinery compliant with WHO LQSI and Africa CDC stand
   - Status index: `idx_assets_status (operational_status)`
   - Calibration index: `idx_assets_next_cal (next_calibration_due)`
   - Laboratory index: `idx_assets_lab (laboratory_id)`
+  - The unconditional manufacturer/serial uniqueness constraint remains in force for `DECOMMISSIONED` assets; duplicate registration is rejected pending resolution of the Phase 1 exception (DEC-06).
+
+The approved asset fields do not include a condemnation reference or document relationship. BR-010 requires one for decommissioning, but its format, source, issuer, approval evidence, and retention relationship remain unspecified; no decommissioning transition is implemented.
 
 ---
 
@@ -231,4 +236,4 @@ The following values are the single source of truth for application enums, API v
 
 ## 7. 3NF Note on Asset Location
 
-`assets` stores both `laboratory_id` (custodian laboratory) and `room_id` (current physical room). Stage 4 requires the selected room to belong to the selected laboratory and prevents changing the college/department code or hierarchy parents while referenced assets depend on them. A shared-instrument/cross-laboratory exception is mentioned as a possible future arrangement, but the approved requirements define no exception workflow or persisted authorization record; it is therefore not implemented. `asset_transfers` will preserve both laboratory and room identifiers so historical locations are never overwritten.
+`assets` stores one `laboratory_id` (custodian laboratory) and one `room_id` (current physical room). BR-004 requires that single current location, and Stage 4 validates that the room belongs to the selected laboratory. A shared-instrument/cross-laboratory arrangement is mentioned as a possible future exception, but no approved multi-location relationship, access workflow, or persisted authorization exists; it is not implemented. `asset_transfers` will preserve both laboratory and room identifiers so historical locations are never overwritten.

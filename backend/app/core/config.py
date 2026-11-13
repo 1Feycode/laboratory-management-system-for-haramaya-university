@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr, field_validator
+from pydantic import AnyHttpUrl, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -17,6 +17,7 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://hu_lab_app:local-dev-only@127.0.0.1:5432/"
         "hu_lab_management"
     )
+    asset_public_base_url: AnyHttpUrl | None = None
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     sql_echo: bool = False
 
@@ -42,6 +43,33 @@ class Settings(BaseSettings):
         if "*" in origins:
             raise ValueError("Wildcard CORS origins are not allowed with credentialed requests")
         return value
+
+    @field_validator("asset_public_base_url")
+    @classmethod
+    def validate_asset_public_base_url(
+        cls, value: AnyHttpUrl | None
+    ) -> AnyHttpUrl | None:
+        if value is not None and (
+            value.path not in ("", "/")
+            or value.query
+            or value.fragment
+            or value.username
+            or value.password
+        ):
+            raise ValueError(
+                "ASSET_PUBLIC_BASE_URL must be an origin without path, query, or credentials"
+            )
+        return value
+
+    @model_validator(mode="after")
+    def require_https_asset_url_in_production(self) -> "Settings":
+        if (
+            self.app_environment.lower() == "production"
+            and self.asset_public_base_url is not None
+            and self.asset_public_base_url.scheme != "https"
+        ):
+            raise ValueError("ASSET_PUBLIC_BASE_URL must use HTTPS in production")
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:

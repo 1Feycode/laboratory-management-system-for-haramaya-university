@@ -97,7 +97,13 @@ The organizational API is documented in [api-specification.md](docs/api/api-spec
 
 ### Stage 4 Asset Management
 
-After signing in, open **Assets** to search and filter the inventory, scan an asset QR code, and view an asset passport. `ULMD_ADMIN` and the designated `LAB_MANAGER` for a laboratory can register assets; only `ULMD_ADMIN` manages category records. Asset codes are system-generated using the approved four-digit college/department sequence. Asset status and location are not directly editable; transfers and maintenance workflows own those changes. See the [asset API specification](docs/api/api-specification.md#3-asset-management-endpoints) and [implementation progress report](docs/development/implementation-progress.md).
+After signing in, open **Assets** to search and filter the inventory, scan an asset QR code, and view an asset passport. `ULMD_ADMIN` and the designated `LAB_MANAGER` for a laboratory can register assets; category mutations are currently restricted to `ULMD_ADMIN` as a provisional guard pending ULMD approval. Asset codes are system-generated using the approved four-digit college/department sequence. Asset status and location are not directly editable; transfers and maintenance workflows own those changes. See the [asset API specification](docs/api/api-specification.md#3-asset-management-endpoints) and [implementation progress report](docs/development/implementation-progress.md).
+
+Asset QR images contain the asset code unless a confirmed public frontend origin is configured with `ASSET_PUBLIC_BASE_URL` in the repository-root `.env`; restart FastAPI after changing it. Set only the origin (no path, query, or credentials); the generated protected link resolves the asset after authentication. Leave the setting unset until the deployment owner confirms the production origin. No production host is currently configured.
+
+### Stage 4 Decision Follow-up
+
+The unconditional manufacturer/serial uniqueness constraint remains unchanged, so a decommissioned asset's serial pair is still reserved. The condemnation-reference schema and decommissioning authority remain unresolved, as does the approved role policy for category administration. Ordinary assets retain one laboratory and one room under BR-004; no shared-location exception is implemented. Full evidence, recommendations, and stakeholder approvals needed are recorded in [Phase 2 open decisions](docs/design/phase-2-open-decisions.md#2-stage-4-decision-review) and the [implementation progress report](docs/development/implementation-progress.md).
 
 ### Backend Verification
 

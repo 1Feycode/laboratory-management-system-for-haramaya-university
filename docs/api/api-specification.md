@@ -172,7 +172,7 @@ Category fields are the approved `asset_categories` data-dictionary fields. No d
 | `PATCH` | `/api/v1/asset-categories/{category_id}` | `ULMD_ADMIN` | Update one or more category fields. |
 | `DELETE` | `/api/v1/asset-categories/{category_id}` | `ULMD_ADMIN` | Delete only if no assets reference the category; otherwise returns `409 Conflict`. |
 
-Category reads support asset registration. The data dictionary defines the category entity but does not state its mutation policy; this implementation uses administrator-only maintenance, referentially restricted deletion, and no fabricated seed records. This policy should be confirmed with ULMD.
+Category reads support asset registration. The approved role matrix does not define category mutation permissions or an active/inactive category lifecycle. The `ULMD_ADMIN`-only create/update/delete guards and admin-only UI visibility are the current provisional restriction, not an approved policy; confirm the authorized role and whether deactivation is required with ULMD. The schema has no activation field, deletion is restricted when assets reference a category, and no default categories are seeded.
 
 ### 3.3 `GET /api/v1/assets`
 - **Security:** Authenticated; all canonical roles have read access.
@@ -239,16 +239,16 @@ Returns the asset passport using the response schema above. Returns `404 Not Fou
 ### 3.6 `PATCH /api/v1/assets/{asset_id}`
 Requires `ULMD_ADMIN` or the designated manager for the asset's laboratory. Accepts one or more of `legacy_tag_number`, `serial_number`, `model_number`, `manufacturer_name`, `category_id`, `purchase_date`, `commissioning_date`, and `warranty_expiry_date`. Nullable tag/date fields may be cleared explicitly. `asset_code`, current location, and `operational_status` cannot be changed through this endpoint; approved transfer and maintenance workflows own custody/status transitions. Each committed change writes an old/new JSONB snapshot to `audit_logs`.
 
-Duplicate serial pairs return `409`; missing assets return `404`; invalid categories return `422`. There is deliberately no asset `DELETE` endpoint under BR-010.
+Duplicate serial pairs return `409`, including when the existing asset is `DECOMMISSIONED`; the unconditional unique constraint remains in force under DEC-06. Missing assets return `404`; invalid categories return `422`. There is deliberately no asset `DELETE` or decommissioning endpoint: BR-010 requires condemnation evidence, but the approved schema and requirements do not define its field, format, document relationship, issuer, or approval evidence.
 
 ### 3.7 QR code and lookup
 
 | Method | Endpoint | Security | Behavior |
 |---|---|---|---|
-| `GET` | `/api/v1/assets/{asset_id}/qr` | Authenticated | Returns an SVG QR image (`image/svg+xml`) containing the universal asset code. |
+| `GET` | `/api/v1/assets/{asset_id}/qr` | Authenticated | Returns an SVG QR image (`image/svg+xml`) containing an asset code, or a configured public passport URL with the code in its query string. |
 | `GET` | `/api/v1/assets/lookup/{asset_code}` | Authenticated | Looks up the universal asset code or, when no exact code exists, a legacy tag. |
 
-An exact universal code takes precedence. Legacy tags are intentionally non-unique; no match returns `404`, while multiple matches return `409` and require the universal asset code. The physical QR payload currently contains the asset code only; the absolute public URL shown in the approved workflow is deferred until the production host name is confirmed.
+An exact universal code takes precedence. Legacy tags are intentionally non-unique; no match returns `404`, while multiple matches return `409` and require the universal asset code. When the optional `ASSET_PUBLIC_BASE_URL` setting is configured to the confirmed frontend origin (without a path, query, or credentials), the QR payload is `{origin}/assets/scan?code={encoded_asset_code}`. The protected frontend route looks up the code and opens its passport; authentication is still required. The camera scanner accepts both this URL and the legacy code-only payload. If the setting is unset, QR payloads remain code-only. No canonical production origin is currently configured.
 
 ### 3.8 Stage 4 audit behavior
 Asset create/update and asset-category create/update/delete records are inserted in the same transaction as their mutations. The approved `audit_logs` table has a PostgreSQL trigger rejecting `UPDATE` and `DELETE`. This stage does not implement audit browsing or audit records for later transfer, maintenance, calibration, or user workflows. The approved `user_id ON DELETE SET NULL` foreign key would conflict with the immutability trigger if physical user deletion is introduced; current user management deactivates accounts instead.

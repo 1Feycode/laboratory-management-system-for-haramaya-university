@@ -14,6 +14,8 @@ This document codifies the operational policies, constraints, and business logic
 - **BR-002 (Manufacturer Serial Uniqueness):**
   The combination of `manufacturer_name` and `serial_number` must be globally unique within the system. The system must reject any attempt to register an existing manufacturer serial number unless the previous asset is marked `DECOMMISSIONED` with a formal condemnation reference.
 
+  **Implementation clarification ([DEC-06](../design/phase-2-open-decisions.md#dec-06-serial-number-reuse-after-decommissioning)):** Phase 2 specifies an unconditional database uniqueness constraint and the Stage 4 implementation retains it. A decommissioned record therefore still reserves its manufacturer/serial pair. The Phase 1 reuse exception is unresolved pending stakeholder confirmation; no constraint change or migration is authorized yet.
+
 - **BR-003 (Strict Separation of Durable Assets & Consumables):**
   Only non-expendable equipment with an expected operational lifespan exceeding one year and requiring capital inventory tracking may be registered in the `assets` table. Volatile chemicals, solvents, glassware, and disposable plastics are strictly prohibited from this table.
 
@@ -68,6 +70,8 @@ This document codifies the operational policies, constraints, and business logic
 
 - **BR-010 (Prohibition of Hard Deletion):**
   Physical assets and their associated maintenance logs cannot be deleted (`DELETE`) from the database. Unusable, obsolete, or damaged equipment must be transitioned to `DECOMMISSIONED` status with an attached condemnation reference in accordance with Haramaya University Senate Legislation.
+
+  **Specification gap:** The approved asset schema does not define the condemnation reference field, its document relationship or format, or the required issuing/approval evidence. No decommissioning endpoint is implemented until these details are approved; see [Open Question 9](./12-assumptions-and-open-questions.md#open-question-9-condemnation-evidence-and-decommissioning) and [DEC-07](../design/phase-2-open-decisions.md#dec-07-condemnation-reference-and-decommissioning).
 
 - **BR-011 (Immutable Audit Logging):**
   Records in the `audit_logs` table are append-only. No user role, including `ULMD_ADMIN` or database administrators, possesses API privileges to alter (`UPDATE`) or remove (`DELETE`) historical audit records.

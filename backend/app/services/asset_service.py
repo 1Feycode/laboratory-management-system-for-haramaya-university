@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from io import BytesIO
 from typing import Literal
+from urllib.parse import quote
 
 import qrcode
 from fastapi import HTTPException, Response
@@ -14,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.core.config import get_settings
 from app.models.asset import Asset, AssetAuditLog, AssetCategory
 from app.models.organization import College, Department, Laboratory, Room
 from app.models.user import User
@@ -537,14 +539,27 @@ async def update_asset(
     return await get_asset(session, asset.id)
 
 
-def render_qr_svg(asset_code: str) -> bytes:
+def build_asset_qr_payload(
+    asset_code: str, public_base_url: str | None
+) -> str:
+    if not public_base_url:
+        return asset_code
+    return (
+        f"{public_base_url.rstrip('/')}/assets/scan"
+        f"?code={quote(asset_code, safe='')}"
+    )
+
+
+def render_qr_svg(
+    asset_code: str, public_base_url: str | None = None
+) -> bytes:
     qr = qrcode.QRCode(
         version=None,
         error_correction=ERROR_CORRECT_H,
         box_size=8,
         border=4,
     )
-    qr.add_data(asset_code)
+    qr.add_data(build_asset_qr_payload(asset_code, public_base_url))
     qr.make(fit=True)
     image = qr.make_image(image_factory=SvgPathImage)
     output = BytesIO()
@@ -556,8 +571,12 @@ async def get_asset_qr(session: AsyncSession, asset_id: uuid.UUID) -> Response:
     asset = await session.get(Asset, asset_id)
     if asset is None:
         raise HTTPException(status_code=404, detail="Asset not found")
+    public_base_url = get_settings().asset_public_base_url
     return Response(
-        content=render_qr_svg(asset.asset_code),
+        content=render_qr_svg(
+            asset.asset_code,
+            str(public_base_url) if public_base_url is not None else None,
+        ),
         media_type="image/svg+xml",
         headers={"Cache-Control": "private, max-age=300"},
     )

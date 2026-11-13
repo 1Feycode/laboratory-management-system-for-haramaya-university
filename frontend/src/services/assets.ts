@@ -156,6 +156,26 @@ export async function lookupAsset(assetCode: string): Promise<Asset> {
   return data;
 }
 
+export function assetCodeFromQrPayload(payload: string): string {
+  const value = payload.trim();
+  if (!/^https?:\/\//i.test(value)) return value;
+
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("The QR code does not contain a valid asset link.");
+  }
+  if (url.pathname.replace(/\/$/, "") !== "/assets/scan") {
+    throw new Error("The QR code does not contain a supported asset link.");
+  }
+  const assetCode = url.searchParams.get("code")?.trim();
+  if (!assetCode) {
+    throw new Error("The asset link does not include an asset code.");
+  }
+  return assetCode;
+}
+
 export async function createAsset(input: AssetInput): Promise<Asset> {
   const { data } = await api.post<Asset>("/api/v1/assets", input);
   return data;

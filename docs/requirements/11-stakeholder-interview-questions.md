@@ -18,6 +18,12 @@ This interview instrument is designed for field requirements validation across a
 ### Condemnation and Disposal
 6. What is the statutory procedure under Haramaya University Senate Legislation for formally condemning damaged or obsolete laboratory equipment and writing it off the university balance sheet?
 7. How long must historical maintenance and asset records be preserved after an instrument is retired or scrapped?
+8. Does an approved condemnation release the manufacturer/serial-number pair for a future asset record, or must that pair remain reserved permanently?
+9. What exact institutional identifier or document is the condemnation reference? Who issues or approves it, what evidence must be retained, and which records-retention rule applies?
+
+### Asset Category Governance
+10. Which existing system roles may create, edit, delete, activate, or deactivate asset categories? Should category changes be restricted to ULMD, or should other roles be able to submit requests?
+11. Should categories have an active/inactive lifecycle so an unused category can be retired without deleting historical references?
 
 ---
 
@@ -49,6 +55,7 @@ This interview instrument is designed for field requirements validation across a
 4. When a student or researcher damages an instrument, what incident report is generated, and who authorizes the repair request?
 5. After the ULMD Technology Unit repairs an instrument, does the laboratory manager perform a formal operational test run before signing off on the repair?
 6. What are your primary frustrations with the current laboratory maintenance process at Haramaya University?
+7. For equipment shared by researchers from several departments, which laboratory and room remain accountable for custody? Is a time-bounded borrowing/access record sufficient, or must the asset have multiple simultaneous locations or custodians?
 
 ---
 
@@ -58,3 +65,9 @@ This interview instrument is designed for field requirements validation across a
 1. How do you verify equipment readiness and laboratory capacity before the start of each academic semester?
 2. What reports do you currently receive regarding equipment downtime and its impact on student practical education?
 3. Would your department support a shared-access model where underutilized departmental instruments are booked by researchers from other colleges?
+
+---
+
+## 5. Group E: ICT Directorate / Application Deployment Owner
+
+1. What confirmed HTTPS frontend origin and application path should be used by production asset QR links, and can intended scanning devices reach it on the university network?

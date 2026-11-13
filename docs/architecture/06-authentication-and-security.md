@@ -14,7 +14,7 @@ The Laboratory Asset Management and Maintenance Tracking System safeguards sensi
 ### Mitigated Threats
 1. **Unauthorized Location Alteration ("Asset Theft / Ghost Assets"):** An unauthorized party modifying an asset's location to conceal its removal. -> *Mitigated via server-side dual-authorization transfer workflows and immutable audit logging.*
 2. **Credential Sniffing & Session Hijacking:** Interception of user credentials across university networks. -> *Mitigated via TLS 1.3 transport encryption, salted bcrypt password hashing, and HttpOnly Secure cookies for refresh tokens.*
-3. **Privilege Escalation:** A technician or departmental user attempting to approve cross-college asset condemnations. -> *Mitigated via server-side RBAC guards injected into every API endpoint.*
+3. **Privilege Escalation:** Unauthorized asset or category mutation. -> *Implemented asset/category endpoints enforce server-side role checks. Decommissioning has no endpoint because BR-010's condemnation evidence and authorization policy are not defined.*
 4. **SQL Injection & Data Tampering:** Direct database exploitation via user input fields. -> *Mitigated via SQLAlchemy 2.0 parameterized queries and strict Pydantic v2 input sanitization.*
 
 ---
@@ -78,6 +78,8 @@ sequenceDiagram
 
 > **Role canonicalization:** The five columns above are the only application roles. Department Heads and the Materials Unit use `AUDITOR` with department-scoped or university-wide read-only assignment respectively. There is no `DEPT_HEAD`, `INVENTORY_AUDITOR`, or `SYSTEM_ADMIN` application role in the MVP.
 
+The approved matrix does not specify which roles may administer asset categories. Current category create/update/delete endpoints enforce `ULMD_ADMIN`, and the frontend shows the management page only to that role. Treat this as a provisional least-privilege implementation restriction, not an approved permission decision; do not broaden it until ULMD confirms the policy. Category activation/deactivation is not modeled.
+
 ---
 
 ## 4. Security Implementation Rules
@@ -106,12 +108,13 @@ Strict origin verification is enforced. Wildcard origins (`*`) are disallowed wh
 ```python
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "https://labs.haramaya.edu.et"],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 ```
+`CORS_ORIGINS` is environment-configured. No production frontend origin is currently confirmed; the example `labs.haramaya.edu.et` origin shown in earlier design material was illustrative, not a configured production host.
 
 ### 4. Password Policy & Account Lockout
 - Minimum length 10 characters, including at least one letter and one digit; passwords are never truncated.

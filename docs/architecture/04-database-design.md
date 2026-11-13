@@ -55,7 +55,7 @@ The schema contains **13 normalized tables**: `colleges`, `departments`, `labora
 ### 1. Referential Integrity Actions (`ON DELETE RESTRICT`)
 To ensure that historical asset data and audit records cannot be compromised:
 - Deleting a `college`, `department`, `laboratory`, or `room` that houses active assets is strictly blocked (`ON DELETE RESTRICT`).
-- Deleting an `asset` with linked `work_orders`, `asset_transfers`, or `calibration_logs` is blocked. Assets are decommissioned via status updates, never hard-deleted.
+- Deleting an `asset` with linked `work_orders`, `asset_transfers`, or `calibration_logs` is blocked. BR-010 requires decommissioning rather than hard deletion, but Stage 4 does not implement a decommissioning transition because the condemnation evidence and authorization details remain unspecified.
 
 ### 2. Compound Uniqueness Constraints
 - `assets(manufacturer_name, serial_number)`: Guarantees that duplicate serial numbers from the same manufacturer cannot be registered.
@@ -77,4 +77,4 @@ To ensure sub-200ms query performance on standard 8 GB RAM hardware:
 
 ## 6. Stage 4 Implemented Database Slice
 
-The Stage 4 migration adds only the approved `asset_categories`, `assets`, and `audit_logs` tables and their listed constraints/indexes. Asset and asset-category mutations write JSONB snapshots in the same transaction. A database trigger rejects audit-row updates and deletes. Asset records have no hard-delete API; location and status changes remain the responsibility of the later transfer and maintenance workflows. The serial-number uniqueness constraint remains unconditional pending DEC-06 confirmation.
+The Stage 4 migration adds only the approved `asset_categories`, `assets`, and `audit_logs` tables and their listed constraints/indexes. Asset and asset-category mutations write JSONB snapshots in the same transaction. A database trigger rejects audit-row updates and deletes. Asset records have no hard-delete or decommissioning API; BR-010's condemnation evidence and authorization details are unspecified. Location and status changes remain the responsibility of the later transfer and maintenance workflows. The serial-number uniqueness constraint remains unconditional pending DEC-06 confirmation, and each asset has one current laboratory and room under BR-004.

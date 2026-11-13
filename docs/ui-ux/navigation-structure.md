@@ -19,6 +19,7 @@ This document maps the user navigation flow, route hierarchy, and role-based men
 │   ├── [Asset Inventory]        /assets                 │
 │   │   ├── [Register Asset]     /assets/register        │
 │   │   └── [Asset Passport]     /assets/:id             │
+│   │       └── [QR Link Entry]  /assets/scan?code=...   │
 │   ├── [Asset Categories]       /admin/asset-categories │
 │   ├── [Maintenance Hub]        /maintenance            │
 │   │   ├── [Submit Fault]       /maintenance/report     │
@@ -41,6 +42,7 @@ This document maps the user navigation flow, route hierarchy, and role-based men
 |---|---|:---:|:---:|:---:|:---:|:---:|
 | **Dashboard** | `/dashboard` | Visible | Visible | Visible | Visible | Visible |
 | **Asset Inventory** | `/assets` | Visible | Visible | Visible | Visible | Visible |
+| **QR Passport Entry** | `/assets/scan?code=...` | Protected | Protected | Protected | Protected | Protected |
 | **Register New Asset**| `/assets/register` | Visible | Hidden | Visible | Hidden | Hidden |
 | **Maintenance Hub** | `/maintenance` | Full Queue | My Assigned | My Lab | My Lab | Read-Only |
 | **Submit Fault** | `/maintenance/report`| Visible | Hidden | Visible | Visible | Hidden |
@@ -54,7 +56,7 @@ This document maps the user navigation flow, route hierarchy, and role-based men
 
 The implemented hierarchy screen is restricted to `ULMD_ADMIN` and provides tabs for colleges, departments, laboratories, and rooms. Location is the approved laboratory-to-room structure, not a separate entity.
 
-The Stage 4 asset list and passport are available to all authenticated roles. Registration and metadata editing are guarded for `ULMD_ADMIN` and `LAB_MANAGER`; the backend additionally verifies that a manager is assigned to the asset's laboratory. Asset-category administration is currently `ULMD_ADMIN` only pending policy confirmation.
+The Stage 4 asset list and passport are available to all authenticated roles. Registration and metadata editing are guarded for `ULMD_ADMIN` and `LAB_MANAGER`; the backend additionally verifies that a manager is assigned to the asset's laboratory. The QR link-entry route requires authentication, resolves the URL's asset code, and redirects to the passport; the original path and query are preserved through login. Asset-category administration is currently `ULMD_ADMIN` only as a provisional restriction pending policy confirmation.
 
 ---
 

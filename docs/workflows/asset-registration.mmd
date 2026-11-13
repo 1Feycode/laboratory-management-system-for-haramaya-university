@@ -10,7 +10,7 @@ flowchart TD
     Conflict --> InputData
     
     CheckSerial -- Unique --> GenCode[Auto-Generate Asset Code:<br/>HU-COLLEGE-DEPT-NNNN]
-    GenCode --> GenQR[Generate Vector QR Code Payload:<br/>https://labs.haramaya.edu.et/assets/CODE]
+    GenCode --> GenQR[Generate Vector QR Payload:<br/>Configured ASSET_PUBLIC_BASE_URL/assets/scan?code=CODE<br/>or asset code only when unset]
     GenQR --> DBInsert[(Insert into assets Table<br/>Status: OPERATIONAL)]
     DBInsert --> AuditLog[(Write to audit_logs Table<br/>Action: ASSET_CREATED)]
     AuditLog --> PrintQR[Display Asset Passport &<br/>Render Printable QR Label]

@@ -32,6 +32,7 @@ On the Windows 10/11 development laptop, the React/Vite frontend and FastAPI/Uvi
 3. Wait until the `db` service is `healthy`. Compose maps the container's port `5432` to the configured Windows host port (default `5432`) on `127.0.0.1`.
 4. PostgreSQL data is stored in the named volume `hu_lab_postgres_data`. Do not remove the volume during routine development. PostgreSQL is not installed directly on Windows.
 5. Configure a random `SECRET_KEY` of at least 32 bytes. Keep it in the ignored root `.env`; never commit it.
+6. `ASSET_PUBLIC_BASE_URL` is optional. Leave it unset until the public frontend origin is confirmed. Once confirmed, set it to the frontend origin only (no path, query, credentials, or trailing application route). QR labels then link to the protected asset lookup route; if unset, the QR continues to contain the asset code only. The frontend origin must be reachable by intended scanning devices and use HTTPS in production.
 
 ### Step 2: Backend Virtual Environment
 1. Open PowerShell / Command Prompt and navigate to `backend/`.
@@ -74,6 +75,8 @@ On the Windows 10/11 development laptop, the React/Vite frontend and FastAPI/Uvi
 5. Verify the API with `http://127.0.0.1:8000/health` and the database connection with `http://127.0.0.1:8000/health/ready`. Authentication endpoints are documented at `http://127.0.0.1:8000/docs`.
 
 The backend runs directly on Windows and therefore connects to PostgreSQL at `127.0.0.1` using the published host port. If the backend is later added to Compose, its database host must be the Compose service name `db` and its port must be `5432`.
+
+No canonical production frontend origin is configured in the repository. The illustrative `https://labs.haramaya.edu.et` value in earlier CORS design text is not an approved deployment hostname; configure both `CORS_ORIGINS` and `ASSET_PUBLIC_BASE_URL` only after the actual origin is confirmed by the deployment owner.
 
 ---
 

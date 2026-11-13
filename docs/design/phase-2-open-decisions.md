@@ -53,3 +53,42 @@ This document catalogs the open architectural and operational decisions identifi
 - **Design Impact:** The policy determines whether the uniqueness constraint is unconditional or excludes decommissioned assets, and how historical identity remains unambiguous.
 - **Proposed Technical Baseline:** Do not weaken the Phase 2 unique constraint until the intended reuse policy and audit implications are confirmed. The existing Phase 1 exception remains unresolved; API behavior and the final constraint must follow stakeholder confirmation.
 - **Confirmation Authority:** ULMD Directorate and the university asset-records authority.
+
+---
+
+## 2. Stage 4 Decision Review
+
+These outcomes record the evidence found in the approved requirements and current implementation. A conservative behavior is not a substitute for stakeholder approval where the governing policy is missing or contradictory.
+
+### DEC-06 Outcome: Preserve the Unconditional Serial Constraint
+- **Classification:** Requires stakeholder approval to change.
+- **Evidence:** Phase 1 BR-002 permits reuse after decommissioning with a formal condemnation reference. The Phase 2 data dictionary and existing database constraint unconditionally enforce unique `(manufacturer_name, serial_number)`.
+- **Resolution implemented:** Keep the unconditional constraint. Duplicate serial pairs continue to return `409 Conflict`, including pairs whose existing asset is `DECOMMISSIONED`. A regression test verifies the behavior. No migration or existing-record change is made.
+- **Approval needed:** Yes, before any serial reuse or constraint change. ULMD and the university asset-records authority must approve both the reuse policy and its condemnation evidence requirements.
+
+### DEC-07: Condemnation Reference and Decommissioning
+- **Classification:** Requires stakeholder approval; no schema or workflow is implemented.
+- **Evidence:** BR-010 requires an attached condemnation reference, but neither the approved asset fields, ERD, data dictionary, nor workflow defines the reference field, document relationship, format, issuer, approving role, or required evidence. The stakeholder interview asks about statutory condemnation procedure without recording an answer.
+- **Recommendation:** Obtain the authoritative records procedure and specify the reference identifier and evidence source, whether a document attachment or external record link is required, the actor/approval evidence and date to retain, and the audit snapshot. Only then define a schema migration, transition API, and UI. Do not invent an official number or approval chain.
+- **Current behavior:** Stage 4 has no decommissioning API or category-independent status mutation endpoint. No database migration was created.
+- **Approval needed:** Yes, before implementing the reference field or decommissioning transition.
+
+### DEC-08: Production Host for Asset QR Codes
+- **Classification:** The configurable behavior is resolved and implemented; the actual production origin remains unconfirmed.
+- **Evidence:** No canonical frontend origin is configured in environment settings or deployment configuration. `https://labs.haramaya.edu.et` appeared only as an illustrative CORS/workflow example and is not authoritative configuration.
+- **Resolution implemented:** Optional `ASSET_PUBLIC_BASE_URL` accepts a frontend origin only. When configured, newly generated QR images contain `/assets/scan?code=...`; the protected frontend route uses authenticated asset lookup and redirects to the passport. The camera scanner accepts both URL and code-only payloads. When unset, the existing code-only QR payload is preserved. No production host is invented or enabled by default.
+- **Approval needed:** No approval is needed for this configurable implementation. The deployment owner must confirm the reachable HTTPS frontend origin before setting the variable or printing URL-based production labels.
+
+### DEC-09: Asset Category Administration
+- **Classification:** Requires stakeholder approval; current implementation remains a provisional restriction.
+- **Evidence:** The approved role matrix has no category-administration permission row. The approved category schema has no active/inactive field, and requirements do not define create, edit, delete, activate, or deactivate authority.
+- **Current behavior:** Backend category create/update/delete endpoints require `ULMD_ADMIN`; the frontend exposes the management page only to `ULMD_ADMIN`. Authenticated users can read categories. Referenced categories cannot be deleted. Tests verify the current API restriction for an auditor. These guards are not evidence of an approved policy.
+- **Recommendation for approval:** Select explicitly between (A) retaining `ULMD_ADMIN`-only create/edit/delete with no soft activation, (B) an admin-managed catalog with other roles read-only and a request-only path for proposed categories, or (C) a formally defined lifecycle with activation/deactivation and the required schema migration. Assign each action to one or more of the existing five roles; do not add a role.
+- **Approval needed:** Yes, for the role/action matrix and any category lifecycle before changing the current guard or schema.
+
+### DEC-10: Shared-Instrument Location Exception
+- **Classification:** The current single-location rule is resolved by BR-004; any exception requires stakeholder approval.
+- **Evidence:** BR-004 requires exactly one physical room within one laboratory, department, and college. The approved ERD and data dictionary model one `laboratory_id` and one `room_id` per asset. A possible future shared-instrument arrangement is mentioned without an approved association, custody, access, or audit workflow.
+- **Resolution implemented:** Retain one accountable laboratory and one current room; keep existing room/laboratory parent validation. No multi-location association or validation bypass is added.
+- **Recommendation for approval:** If shared use is required, preserve one accountable custodian and physical location and define a separate, time-bounded shared-access/booking relationship with named borrower, authorization, effective dates, and audit history. If stakeholders instead require simultaneous custody at multiple locations, specify that policy and its consequences before revising the ERD.
+- **Approval needed:** No for enforcing BR-004. Yes before introducing any shared-instrument exception.

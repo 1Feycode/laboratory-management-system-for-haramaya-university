@@ -52,3 +52,28 @@ This document captures the working assumptions adopted during Phase 1 analysis a
 - **Question:** Must the audit trail preserve the exact room (not only the laboratory) from which an asset departed and the room to which it arrived?
 - **Impact on System Design:** The `asset_transfers` table must store `origin_room_id` and `target_room_id` in addition to laboratory identifiers.
 - **Proposed Baseline:** Yes. Phase 2 adds origin and target room foreign keys to `asset_transfers` so the complete physical location history is retained.
+
+### Open Question 8: Serial Number Reuse After Decommissioning
+- **Question:** Does a formally condemned asset release its manufacturer/serial-number pair for reuse, or must the pair remain reserved permanently?
+- **Impact on System Design:** Reuse would require changing the unconditional Phase 2 uniqueness constraint and defining how historical and new assets remain distinguishable. The Phase 1 exception requires a condemnation reference, but that reference is not defined in the approved schema.
+- **Proposed Baseline:** Keep the unconditional constraint and reject duplicates, including pairs on decommissioned assets, until ULMD and the university asset-records authority approve a complete reuse and condemnation policy.
+
+### Open Question 9: Condemnation Evidence and Decommissioning
+- **Question:** What exact institutional record identifies condemnation, and what identifier, evidence attachment, issuer, approval evidence, date, and retention relationship must the system preserve?
+- **Impact on System Design:** The answer determines the approved schema, transition validation, API request, role authorization, audit snapshot, and user interface for decommissioning.
+- **Proposed Baseline:** Do not create a field, format, legal interpretation, or approval workflow by assumption. Obtain the authoritative records procedure and define these items before implementing a decommissioning transition.
+
+### Open Question 10: Asset Category Administration
+- **Question:** Which existing role may create, edit, delete, activate, or deactivate shared asset categories, and should categories support an active/inactive lifecycle?
+- **Impact on System Design:** Determines backend permission guards, frontend visibility, and whether a category status field and migration are required. The approved category schema currently has no active/inactive field.
+- **Proposed Baseline:** Preserve the existing `ULMD_ADMIN`-only create/update/delete guards as a provisional restriction, not an approved role policy. Keep reads available to authenticated users and require ULMD to select an authorization and lifecycle policy.
+
+### Open Question 11: Shared-Instrument Location Exception
+- **Question:** Must a shared instrument have one accountable custodian and physical room, or may it be associated with multiple laboratories, departments, or rooms at the same time?
+- **Impact on System Design:** Multiple current associations would change asset relationships, validation, transfer history, audit events, and the ownership/custody model.
+- **Proposed Baseline:** Retain BR-004's single current room and laboratory. If shared access is desired, first define whether it is an access/booking arrangement distinct from physical custody; do not model multiple locations until that distinction and its authorization workflow are approved.
+
+### Open Question 12: Canonical Public Frontend Origin for QR Links
+- **Question:** What confirmed, HTTPS-reachable frontend origin should be encoded in asset QR links, and is the application mounted at the origin root?
+- **Impact on System Design:** The configured origin determines whether printed URL-based QR labels open the correct protected asset lookup route on university and mobile networks.
+- **Proposed Baseline:** No canonical production origin is currently configured. Keep `ASSET_PUBLIC_BASE_URL` optional; configure it only after the deployment origin is confirmed. When absent, QR codes continue to contain the asset code only.

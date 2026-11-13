@@ -3,6 +3,7 @@ import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
+  assetCodeFromQrPayload,
   listAssets,
   listAllCategories,
   listLocationOptions,
@@ -144,9 +145,13 @@ export default function AssetListPage() {
   const onScanned = useCallback(
     (assetCode: string) => {
       setScannerOpen(false);
-      void lookupAsset(assetCode)
-        .then((asset) => navigate(`/assets/${asset.id}`))
-        .catch((cause: unknown) => setError(messageFromError(cause)));
+      try {
+        void lookupAsset(assetCodeFromQrPayload(assetCode))
+          .then((asset) => navigate(`/assets/${asset.id}`))
+          .catch((cause: unknown) => setError(messageFromError(cause)));
+      } catch (cause: unknown) {
+        setError(messageFromError(cause));
+      }
     },
     [navigate],
   );

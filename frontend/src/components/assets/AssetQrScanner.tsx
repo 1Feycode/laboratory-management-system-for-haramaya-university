@@ -66,7 +66,7 @@ export default function AssetQrScanner({
         <div id="asset-qr-reader" className="mt-4 min-h-64" />
         {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
         <p className="mt-3 text-sm text-slate-600">
-          Camera access is required. The QR code contains the asset code only.
+          Camera access is required. Scan an asset code or a configured asset passport link.
         </p>
       </section>
     </div>

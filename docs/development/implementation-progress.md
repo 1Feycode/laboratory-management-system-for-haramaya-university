@@ -21,11 +21,12 @@
 ### Stage 4 boundaries and unresolved decisions
 
 - No asset name, description, purchase price, separate condition table, initial categories, status transitions, asset deletion, transfers, work orders, calibration scheduling/history, reports, or general audit viewer were introduced. These are unsupported by the approved asset fields or belong to later stages.
-- **DEC-06 remains open:** the approved Phase 2 manufacturer/serial uniqueness constraint is unconditional. Serial reuse after decommissioning remains rejected until ULMD confirms the Phase 1 exception and its audit requirements.
-- **BR-010 schema gap:** the Phase 1 rule refers to a formal condemnation reference, but the approved Asset data dictionary has no such field. Stage 4 therefore does not implement decommissioning or status changes.
-- **Category policy:** the data dictionary approves category fields but does not state who may create/update/delete categories. Stage 4 uses a narrow `ULMD_ADMIN`-only policy; referenced categories cannot be deleted. ULMD confirmation is still needed.
-- **QR payload:** the approved registration workflow shows an absolute production URL, but no confirmed public host is configured. The QR currently encodes only the universal asset code; QR lookup also supports unique legacy tags. Duplicate legacy-tag matches return `409 Conflict`.
-- **Location exception:** a shared-instrument/cross-laboratory exception is mentioned in the data dictionary but has no approved workflow or persisted authorization. Stage 4 enforces exact room/laboratory parentage pending a formal decision.
+- **DEC-06 serial reuse:** the unconditional manufacturer/serial constraint remains in force. A regression test verifies that a duplicate is rejected even when the existing asset is `DECOMMISSIONED`. No migration or existing-record change was made; stakeholder approval is still required before changing this policy.
+- **BR-010 condemnation reference:** the approved Asset data dictionary has no reference field or document relationship, and authority/evidence details are unspecified. No condemnation schema, status transition, or decommissioning API was added; stakeholder approval is required.
+- **Category policy:** the approved role matrix does not define category administration, and the schema has no active/inactive field. Existing `ULMD_ADMIN`-only backend mutations and frontend visibility remain a provisional restriction; API tests verify non-admin mutation requests are denied. Stakeholder approval is required before changing the role guards or schema.
+- **QR payload:** no canonical production host is configured. Optional `ASSET_PUBLIC_BASE_URL` now controls URL-based QR destinations; when unset, the existing code-only payload remains. Configured URLs resolve through a protected `/assets/scan?code=...` route, and the camera scanner accepts URL and code-only payloads. The deployment owner must confirm the origin before configuring it.
+- **Location exception:** BR-004 requires one current room and laboratory, while the possible shared-instrument note defines no exception workflow or persisted authorization. Existing parent validation remains; no multi-location relationship or bypass was added. Stakeholder approval is required before any exception.
+- **Migration/data preservation:** no Alembic revision was needed for these decision outcomes. No application-database records or existing migration history were changed.
 - **Audit user foreign key:** `audit_logs.user_id ON DELETE SET NULL` would require changing an audit row, which the append-only trigger blocks. Current user management deactivates accounts and exposes no physical deletion. Production DB role hardening is still required because a database owner/superuser can disable triggers.
 - Only asset and category mutations are recorded in the Stage 4 audit slice. Audit events for authentication, user changes, transfers, maintenance, and calibration, plus audit browsing, are not implemented here.
 
@@ -33,8 +34,8 @@
 
 | Check | Result |
 |---|---|
-| Backend automated suite | Passed; 25 tests across Stages 1–4 |
-| Asset-focused tests | Passed; registration/code sequence, duplicate serial, invalid category/location, metadata audit snapshot, filtering/pagination, QR/legacy lookup, RBAC, and no-hard-delete behavior |
+| Backend automated suite | Passed; 27 tests across Stages 1–4 |
+| Asset-focused tests | Passed; registration/code sequence, duplicate serial including decommissioned assets, invalid category/location, audit snapshots, filtering/pagination, QR payload fallback/configuration, QR/legacy lookup, category mutation guards, and no-hard-delete behavior |
 | Alembic migration | Passed; `20261113_03` applied to the existing database without resetting it |
 | Alembic model/schema comparison | Passed; `alembic check` reported no pending operations |
 | Audit append-only protection | Passed; PostgreSQL rejected direct `UPDATE` and `DELETE`; validation rows were rolled back |

@@ -98,7 +98,7 @@ frontend/
 Bench-side technicians and managers require rapid equipment identification without typing long serial numbers. The system implements a custom React hook `useQRScanner` wrapping the lightweight `html5-qrcode` library:
 
 1. **Permissions:** Requests standard browser `MediaStream` camera access on mobile devices and laptops.
-2. **Decoding:** Continuously scans video frames for standard QR payloads.
+2. **Decoding:** The scanner accepts either the universal asset code or a URL generated from the optional `ASSET_PUBLIC_BASE_URL` setting. URL payloads must use `/assets/scan?code=...`; the protected route resolves the code through the authenticated lookup API and redirects to the asset passport. Code-only labels remain supported when no public host is configured.
 3. **Execution:** On capture, extracts the asset code and navigates directly to the asset passport view (`/assets/:id`), executing in under 200 ms.
 4. **Fallback:** If camera access is denied or unavailable, provides an instant text lookup input with auto-complete.
 

@@ -1,11 +1,15 @@
 import asyncio
 from uuid import UUID, uuid4
 
+import pytest
+from pydantic import ValidationError
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from app.core.config import Settings
 from app.core.security import hash_password
 from app.models import Asset, AssetAuditLog
+from app.services.asset_service import build_asset_qr_payload
 from tests.conftest import insert_test_user
 
 
@@ -186,6 +190,43 @@ def test_asset_registration_qr_lookup_and_pagination(client, test_engine) -> Non
     )
 
 
+def test_asset_qr_payload_uses_configured_passport_link_or_asset_code() -> None:
+    asset_code = "HU-ENG/CHEM 1"
+    assert build_asset_qr_payload(asset_code, None) == asset_code
+    assert build_asset_qr_payload(
+        asset_code, "https://inventory.example.test/"
+    ) == "https://inventory.example.test/assets/scan?code=HU-ENG%2FCHEM%201"
+
+
+def test_asset_public_base_url_is_optional_and_must_be_an_origin() -> None:
+    settings = Settings(
+        _env_file=None, secret_key="x" * 32, asset_public_base_url=None
+    )
+    assert settings.asset_public_base_url is None
+
+    configured = Settings(
+        _env_file=None,
+        secret_key="x" * 32,
+        asset_public_base_url="https://inventory.example.test",
+    )
+    assert str(configured.asset_public_base_url).rstrip("/") == (
+        "https://inventory.example.test"
+    )
+    with pytest.raises(ValidationError):
+        Settings(
+            _env_file=None,
+            secret_key="x" * 32,
+            asset_public_base_url="https://inventory.example.test/app",
+        )
+    with pytest.raises(ValidationError):
+        Settings(
+            _env_file=None,
+            app_environment="production",
+            secret_key="x" * 32,
+            asset_public_base_url="http://inventory.example.test",
+        )
+
+
 def test_asset_validation_serial_uniqueness_and_audit_snapshot(
     client, test_engine
 ) -> None:
@@ -255,6 +296,22 @@ def test_asset_validation_serial_uniqueness_and_audit_snapshot(
     assert logs[0].new_values["asset_code"] == "HU-ENG-CHEM-0001"
     assert logs[1].old_values["model_number"] == "UV-1900i"
     assert logs[1].new_values["model_number"] == "UV-1900i Updated"
+
+    async def decommission_asset():
+        factory = async_sessionmaker(test_engine, expire_on_commit=False)
+        async with factory() as session:
+            await session.execute(
+                update(Asset)
+                .where(Asset.id == UUID(created.json()["id"]))
+                .values(operational_status="DECOMMISSIONED")
+            )
+            await session.commit()
+
+    asyncio.run(decommission_asset())
+    duplicate_after_decommission = client.post(
+        "/api/v1/assets", headers=headers, json=payload
+    )
+    assert duplicate_after_decommission.status_code == 409
 
 
 def test_asset_writes_require_assigned_lab_manager_or_admin(
@@ -404,6 +461,38 @@ def test_category_administration_and_referential_delete_rules(
         f"/api/v1/asset-categories/{unused['id']}", headers=headers
     )
     assert unused_delete.status_code == 204
+
+    auditor = insert_test_user(
+        test_engine,
+        email="auditor@example.edu",
+        password_hash=hash_password("SecurePass123"),
+        role_name="AUDITOR",
+    )
+    auditor_headers = _headers(client, auditor)
+    denied_create = client.post(
+        "/api/v1/asset-categories",
+        headers=auditor_headers,
+        json={
+            "name": "Auditor Category",
+            "requires_calibration": False,
+            "default_calibration_interval_days": 0,
+        },
+    )
+    denied_update = client.patch(
+        f"/api/v1/asset-categories/{category['id']}",
+        headers=auditor_headers,
+        json={"name": "Unauthorized Rename"},
+    )
+    denied_delete = client.delete(
+        f"/api/v1/asset-categories/{category['id']}", headers=auditor_headers
+    )
+    category_read = client.get(
+        f"/api/v1/asset-categories/{category['id']}", headers=auditor_headers
+    )
+    assert denied_create.status_code == 403
+    assert denied_update.status_code == 403
+    assert denied_delete.status_code == 403
+    assert category_read.status_code == 200
 
     async def read_category_audit():
         factory = async_sessionmaker(test_engine, expire_on_commit=False)

@@ -63,8 +63,8 @@ This document details the layout, data elements, user interactions, and visual s
 - `ULMD_ADMIN` and the designated manager of the selected laboratory can register assets. The form accepts only approved asset fields, assigns the asset code on the server, and starts the asset in `OPERATIONAL`. Editing does not expose the asset code, status, or location.
 - The passport shows the approved identity, category/calibration defaults, current college/department/laboratory/room, recorded purchase/commissioning/warranty/calibration dates, and a generated SVG QR label.
 - Maintenance, calibration, transfer-history, and custody-history tabs/actions remain planned for their later stages. Stage 4 does not claim that those history datasets exist.
-- The QR payload currently contains the universal asset code. The approved workflow's absolute production URL is deferred until the public application host is confirmed; both the QR endpoint and lookup remain authenticated.
-- Category create/update/delete is currently limited to `ULMD_ADMIN`. The data dictionary defines the category entity but does not state its mutation policy; deletion is restricted by asset references and the policy is flagged for ULMD confirmation.
+- QR labels contain the universal asset code while `ASSET_PUBLIC_BASE_URL` is unset. Once the deployment owner confirms the public frontend origin, this optional setting makes new QR labels link to `/assets/scan?code=...`; that protected route resolves and opens the asset passport. The camera scanner accepts both URL and code-only payloads. The QR image endpoint and lookup API remain authenticated. No production origin is currently configured.
+- Category create/update/delete endpoints and the management-page visibility are currently restricted to `ULMD_ADMIN`. This is a provisional least-privilege implementation because the approved role matrix does not define category administration; stakeholder confirmation is required. The category schema has no active/inactive field, and deletion is blocked when assets reference a category.
 
 ---
 
