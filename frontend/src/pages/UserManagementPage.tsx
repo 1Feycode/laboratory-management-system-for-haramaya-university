@@ -284,25 +284,36 @@ export default function UserManagementPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {users.map((user) => (
-                  <tr key={user.id}>
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-slate-900">{user.full_name}</div>
-                      <div className="text-slate-600">{user.email}</div>
-                    </td>
-                    <td className="px-6 py-4">{user.role}</td>
-                    <td className="px-6 py-4">{user.department_id ?? "University-wide"}</td>
-                    <td className="px-6 py-4">{user.is_active ? "Active" : "Inactive"}</td>
-                    <td className="space-x-3 whitespace-nowrap px-6 py-4">
-                      <button className="text-university-700 underline" onClick={() => beginEdit(user)}>
-                        Edit
-                      </button>
-                      <button className="text-university-700 underline" onClick={() => void toggleActive(user)}>
-                        {user.is_active ? "Deactivate" : "Activate"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {users.map((user) => {
+                  const department = departments.find(
+                    (item) => item.id === user.department_id,
+                  );
+                  return (
+                    <tr key={user.id}>
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-slate-900">{user.full_name}</div>
+                        <div className="text-slate-600">{user.email}</div>
+                      </td>
+                      <td className="px-6 py-4">{user.role}</td>
+                      <td className="px-6 py-4">
+                        {user.department_id
+                          ? department
+                            ? `${department.name} (${department.code})`
+                            : "Department unavailable"
+                          : "University-wide"}
+                      </td>
+                      <td className="px-6 py-4">{user.is_active ? "Active" : "Inactive"}</td>
+                      <td className="space-x-3 whitespace-nowrap px-6 py-4">
+                        <button className="text-university-700 underline" onClick={() => beginEdit(user)}>
+                          Edit
+                        </button>
+                        <button className="text-university-700 underline" onClick={() => void toggleActive(user)}>
+                          {user.is_active ? "Deactivate" : "Activate"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
