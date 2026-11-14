@@ -92,3 +92,19 @@ These outcomes record the evidence found in the approved requirements and curren
 - **Resolution implemented:** Retain one accountable laboratory and one current room; keep existing room/laboratory parent validation. No multi-location association or validation bypass is added.
 - **Recommendation for approval:** If shared use is required, preserve one accountable custodian and physical location and define a separate, time-bounded shared-access/booking relationship with named borrower, authorization, effective dates, and audit history. If stakeholders instead require simultaneous custody at multiple locations, specify that policy and its consequences before revising the ERD.
 - **Approval needed:** No for enforcing BR-004. Yes before introducing any shared-instrument exception.
+
+## 3. Stage 6 Maintenance Decision Boundaries
+
+### DEC-02 Outcome: External-Parts Approval State
+- **Classification:** Requires stakeholder approval; no approval state is implemented.
+- **Evidence:** FR-007 describes `AWAITING_APPROVAL` as optional, and DEC-02 proposes it when external spare-parts procurement incurs budget expenditure. The approved materials do not state a monetary threshold, whether all external parts require approval, what documentation is required, who may approve in place of or in addition to the ULMD Directorate, or how rejection/cancellation affects the work order and asset.
+- **Current implementation:** The additive Stage 6 schema and API allow `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `RESOLVED`, and `CLOSED`. A technician may pause and resume for parts, but there is no spending approval endpoint or `AWAITING_APPROVAL` state. No budget or procurement subsystem was added.
+- **Recommendation for approval:** Confirm (1) the exact event that requires approval, (2) any monetary threshold and currency, (3) the authorized approver(s), (4) required quote/reference and audit evidence, (5) approve/reject transitions and rejection notes, and (6) how the asset status behaves while approval is pending. Only after approval should the work-order check constraint, transition API, audit snapshots, UI actions, and migration be extended.
+- **Approval needed:** Yes before adding an approval status or gate.
+
+### DEC-11: Closure of Degraded or Unrepairable Outcomes
+- **Classification:** Requires stakeholder approval; no disposition behavior is inferred.
+- **Evidence:** The approved maintenance outcome values include `OPERATIONAL`, `REPAIRED_DEGRADED`, and `UNREPAIRABLE`. UC-05 and the maintenance workflow specify successful closure restoring the asset to `OPERATIONAL`; they do not define whether a degraded repair can return to service, who authorizes that return, or how an unrepairable asset transitions to `DECOMMISSIONED` with the required condemnation reference (see DEC-07).
+- **Current implementation:** A repair log may record all three approved outcomes. Confirmed closure is accepted only when the latest outcome is `OPERATIONAL`; a confirmed close for either other outcome returns `409 Conflict`. The asset remains in its maintenance/defective state. The custodian may reject the repair back to `IN_PROGRESS`; no decommissioning or asset-status bypass is available.
+- **Recommendation for approval:** Define separate decisions for degraded and unrepairable outcomes: permitted operating conditions and approving role for degraded equipment; and the required condemnation evidence, authorization, and lifecycle transition for unrepairable equipment. Align the approved asset state machine, audit fields, API, and screen actions before implementing the policy.
+- **Approval needed:** Yes before supporting confirmed closure for non-operational outcomes or decommissioning from maintenance.

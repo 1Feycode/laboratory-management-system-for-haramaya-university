@@ -161,7 +161,7 @@ Tracks equipment breakdowns, technician dispatch, and resolution states.
 - **`assigned_to`** (`UUID`, NULLABLE, FK -> `users.id`): Servicing Technology Unit technician.
 - **`severity`** (`VARCHAR(30)`, NOT NULL): `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`.
 - **`failure_category`** (`VARCHAR(50)`, NOT NULL): `ELECTRICAL`, `MECHANICAL`, `OPTICAL`, `SOFTWARE`, `CONSUMABLE`, `OTHER`.
-- **`status`** (`VARCHAR(50)`, NOT NULL, DEFAULT 'OPEN'): `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `AWAITING_APPROVAL`, `RESOLVED`, `CLOSED`. `AWAITING_APPROVAL` is reserved for the DEC-02 external-parts approval baseline.
+- **`status`** (`VARCHAR(50)`, NOT NULL, DEFAULT 'OPEN'): The approved conceptual workflow lists `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `RESOLVED`, and `CLOSED`. `AWAITING_APPROVAL` is only a proposed DEC-02 external-parts approval state; it is excluded from the Stage 6 migration and API until its threshold, approver, and evidence are confirmed.
 - **`fault_description`** (`TEXT`, NOT NULL): Detailed symptom report.
 - **`verified_by`** (`UUID`, NULLABLE, FK -> `users.id`): Custodian Lab Manager who signed off closure.
 - **`verification_notes`** (`TEXT`, NULLABLE): Lab Manager's operational test and sign-off comments.
@@ -225,7 +225,7 @@ The following values are the single source of truth for application enums, API v
 | **Application Roles** | `ULMD_ADMIN`, `MAINTENANCE_TECH`, `LAB_MANAGER`, `LAB_TECH`, `AUDITOR` | Five canonical MVP roles; see stakeholder analysis §3. |
 | **Asset Operational Status** | `OPERATIONAL`, `UNDER_MAINTENANCE`, `DEFECTIVE`, `TRANSFER_PENDING`, `DECOMMISSIONED` | `CALIBRATION_OVERDUE` is computed, not stored. |
 | **Asset Category Lab Type** | `WET`, `DRY`, `COMPUTING`, `WORKSHOP` | Stored on `laboratories.lab_type`. |
-| **Work Order Status** | `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `AWAITING_APPROVAL`, `RESOLVED`, `CLOSED` | `AWAITING_APPROVAL` is conditional on DEC-02. |
+| **Work Order Status** | `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `RESOLVED`, `CLOSED` | `AWAITING_APPROVAL` appears only in the conditional DEC-02 proposal and is not accepted by the current Stage 6 database constraint or API. |
 | **Work Order Severity** | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` | Critical faults set the asset to `DEFECTIVE`. |
 | **Failure Category** | `ELECTRICAL`, `MECHANICAL`, `OPTICAL`, `SOFTWARE`, `CONSUMABLE`, `OTHER` | Stored on `work_orders.failure_category`. |
 | **Maintenance Outcome** | `OPERATIONAL`, `REPAIRED_DEGRADED`, `UNREPAIRABLE` | Stored on `maintenance_logs.outcome_condition`. |

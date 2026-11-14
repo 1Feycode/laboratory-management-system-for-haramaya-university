@@ -132,6 +132,15 @@ export default function AssetDetailPage() {
               Edit details
             </Link>
           )}
+          {["ULMD_ADMIN", "LAB_MANAGER", "LAB_TECH"].includes(user?.role ?? "") &&
+            asset.operational_status === "OPERATIONAL" && (
+              <Link
+                className="rounded border border-amber-400 px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-50"
+                to={`/maintenance?assetCode=${encodeURIComponent(asset.asset_code)}`}
+              >
+                Report fault
+              </Link>
+            )}
         </div>
       </div>
 

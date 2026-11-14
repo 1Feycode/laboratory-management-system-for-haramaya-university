@@ -50,6 +50,12 @@ export default function AppLayout() {
             <NavLink to="/assets" className="text-slate-700 hover:text-university-700">
               Assets
             </NavLink>
+            <NavLink
+              to="/maintenance"
+              className="text-slate-700 hover:text-university-700"
+            >
+              Maintenance
+            </NavLink>
             {["ULMD_ADMIN", "LAB_MANAGER", "AUDITOR"].includes(user.role) && (
               <NavLink
                 to="/transfers"

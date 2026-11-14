@@ -87,14 +87,15 @@ These hierarchy APIs are implemented for Stage 3. A separate `Location` entity i
 ### Maintenance & Work Orders
 | Method | Endpoint Path | Functionality | Permitted Roles | Request Payload | Response |
 |---|---|---|---|---|---|
-| `POST` | `/api/v1/work-orders` | Report fault / open ticket | `LAB_TECH`, `LAB_MANAGER`, `ULMD_ADMIN`| `WorkOrderCreateSchema` | `201 Created` with Ticket # |
-| `GET` | `/api/v1/work-orders` | List open/active tickets | Authenticated | Query: `status`, `severity` | Paginated ticket list |
-| `GET` | `/api/v1/work-orders/{id}` | Ticket detail and history | Authenticated | Path: `id` | Work order, logs, asset summary |
-| `PUT` | `/api/v1/work-orders/{id}/assign`| Assign technician | `ULMD_ADMIN` | `{"technician_id": "UUID"}` | Updated ticket record |
-| `PUT` | `/api/v1/work-orders/{id}/status`| Move to `IN_PROGRESS`/`AWAITING_PARTS` | `MAINTENANCE_TECH`, `ULMD_ADMIN` | `{"status": "IN_PROGRESS"}` | Updated ticket record |
-| `POST` | `/api/v1/work-orders/{id}/logs` | Submit repair actions | `MAINTENANCE_TECH`, `ULMD_ADMIN`| `MaintenanceLogCreateSchema` | `201 Created` with service log |
-| `PUT` | `/api/v1/work-orders/{id}/close`| Lab Manager sign-off | `LAB_MANAGER`, `ULMD_ADMIN` | `{"confirmed": true, "verification_notes": "..."}` | Closed ticket, operational asset |
-| `PUT` | `/api/v1/work-orders/{id}/reject`| Lab Manager rejects repair | `LAB_MANAGER`, `ULMD_ADMIN` | `{"verification_notes": "..."}` | Ticket back to `IN_PROGRESS` |
+| `POST` | `/api/v1/work-orders` | Report fault / open ticket | `LAB_TECH`, designated `LAB_MANAGER`, `ULMD_ADMIN` | `asset_id`, `severity`, `failure_category`, `fault_description` | `201 Created` full work order |
+| `GET` | `/api/v1/work-orders` | List filtered tickets | All canonical roles, scoped | Query: `page`, `size`, `status`, `severity`, `asset_id` | Paginated work orders with history |
+| `GET` | `/api/v1/work-orders/{order_id}` | Retrieve ticket and history | All canonical roles, scoped | Path: `order_id` | Work order with logs and status history |
+| `PUT` | `/api/v1/work-orders/{order_id}/assign` | Assign active Maintenance Technician | `ULMD_ADMIN` | `{"assigned_to": "UUID"}` | `ASSIGNED` work order |
+| `PUT` | `/api/v1/work-orders/{order_id}/status` | Start, pause for parts, or resume | Assigned `MAINTENANCE_TECH` | `{"status": "IN_PROGRESS"}` or `{"status": "AWAITING_PARTS"}` | Updated work order |
+| `POST` | `/api/v1/work-orders/{order_id}/logs` | Submit repair activity | Assigned `MAINTENANCE_TECH`, `ULMD_ADMIN` | `actions_taken`, `spare_parts_used`, `labor_hours`, `outcome_condition` | `201 Created`; work order `RESOLVED` |
+| `PUT` | `/api/v1/work-orders/{order_id}/close` | Confirm or reject repair | Custodian `LAB_MANAGER`, `ULMD_ADMIN` | `{"confirmed": true, "verification_notes": "..."}` | Closed or returned to `IN_PROGRESS` |
+
+**Stage 6 behavior:** All transitions and audit snapshots are transactional. A confirmed close requires the latest outcome to be `OPERATIONAL`; closure rules for degraded/unrepairable outcomes remain unresolved. The conditional `AWAITING_APPROVAL` state and proposed local-repair path are not implemented pending DEC-02 / DEC-03 decisions. See the [detailed API specification](../api/api-specification.md#4-maintenance--work-order-endpoints).
 
 ### Calibrations & Compliance
 | Method | Endpoint Path | Functionality | Permitted Roles | Request Payload | Response |

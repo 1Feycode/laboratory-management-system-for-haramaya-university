@@ -71,14 +71,18 @@ This document details the layout, data elements, user interactions, and visual s
 ### Screen 4: Maintenance Work Orders & Dispatch Board (`/maintenance`)
 - **Target Roles:** `LAB_TECH`, `LAB_MANAGER`, `MAINTENANCE_TECH`, `ULMD_ADMIN`, `AUDITOR` (read-only).
 - **Layout Structure:**
-  - **Status Filter Tabs:** `All`, `Open`, `Assigned`, `In Progress`, `Awaiting Parts`, `Resolved`, `Closed`.
-  - **Work Order Table / Kanban Card View:**
-    - Ticket Number (`WO-2026-0142`), Asset Code, Severity Badge (`CRITICAL` in high-contrast red), Reporting Lab, Time Elapsed since submission.
-  - **Action Modals:**
-    - *Assign Modal (ULMD Admin):* Dropdown list of Technology Unit technicians with active workload indicators.
-    - *Service Log Modal (Technician):* Multi-line input for actions taken, spare parts replaced, labor hours expended, and outcome condition selector.
-    - *Verification Sign-Off Modal (Lab Manager):* Confirmation checkbox and comment field to verify that the repaired instrument operates properly before closing the ticket.
-  - **Role Restrictions:** `AUDITOR` can view work-order data only; all assignment, logging, and verification controls are hidden.
+  - **Report Fault Form:** Asset code, severity, failure category, and symptom description. The form resolves the code to an asset before submission. The asset passport provides a direct link that pre-fills its asset code.
+  - **Work Order Queue:** Paginated cards include ticket/asset identifiers, model, manufacturer, laboratory, reporter, assigned technician, failure category, severity, description, status, status history, and repair log history. A status selector filters the queue.
+  - **Assignment:** `ULMD_ADMIN` selects an active Maintenance Technician for an `OPEN` order.
+  - **Technician Workflow:** The assigned Maintenance Technician starts work, can mark an in-progress order `AWAITING_PARTS`, resumes it as `IN_PROGRESS`, and submits actions, parts used, labor hours, and outcome. Submission moves the order to `RESOLVED`.
+  - **Verification:** The custodian Lab Manager or `ULMD_ADMIN` records verification notes and either closes a successful `OPERATIONAL` repair or rejects the repair back to `IN_PROGRESS`.
+  - **Role Restrictions:** The interface reflects server-side scopes. `AUDITOR` is read-only; technicians see their assigned orders, Lab Managers their own laboratories, and Lab Technicians their departments. ULMD Admin can assign and, as allowed by the role matrix, submit an activity for an assigned work order.
+
+#### Stage 6 implementation scope and unresolved decisions
+- `/maintenance` is the implemented route; fault reporting is embedded in the queue, not a separate `/maintenance/report` route. Ticket detail, audit-backed status history, and repair logs are shown on each queue card; there is no separate `/maintenance/:id` route.
+- The database and API support only `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `RESOLVED`, and `CLOSED`. `AWAITING_APPROVAL` is conditional on DEC-02 and remains excluded until external-parts approval criteria are confirmed.
+- A confirmed close requires the latest maintenance outcome to be `OPERATIONAL`. The policy for closing `REPAIRED_DEGRADED` or `UNREPAIRABLE` outcomes is unresolved; the UI explains that limitation and the API returns `409 Conflict` for a confirmed close.
+- There is no separate local routine-maintenance path (DEC-03), attachment upload, outbound notification, or calibration workflow in Stage 6.
 
 ---
 

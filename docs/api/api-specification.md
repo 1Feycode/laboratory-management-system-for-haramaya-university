@@ -284,35 +284,107 @@ The API returns `401` when unauthenticated, `403` for a role or laboratory-scope
 
 ## 4. Maintenance & Work Order Endpoints
 
+The Stage 6 implementation uses only the approved `work_orders` and
+`maintenance_logs` tables. All endpoints require a bearer access token. Lab
+Managers can access only work orders for laboratories they currently manage;
+Lab Technicians are limited to their department; Maintenance Technicians can
+read and act only on tickets assigned to them; ULMD Admins and Auditors have
+university-wide read access. The API independently enforces every role and
+scope rule.
+
 ### 4.1 `POST /api/v1/work-orders`
-- **Description:** Submit fault report and open maintenance ticket.
-- **Security:** `LAB_TECH`, `LAB_MANAGER`, `ULMD_ADMIN`.
+- **Description:** Report a fault and open a work order.
+- **Security:** `LAB_TECH` (own department), designated `LAB_MANAGER` (own
+  laboratory), or `ULMD_ADMIN`.
+- **Request fields:** `asset_id` (UUID), `severity` (`LOW`, `MEDIUM`, `HIGH`,
+  `CRITICAL`), `failure_category` (`ELECTRICAL`, `MECHANICAL`, `OPTICAL`,
+  `SOFTWARE`, `CONSUMABLE`, `OTHER`), and a non-empty `fault_description`.
 - **Request Body (`application/json`):**
   ```json
   {
     "asset_id": "b182fb5a-5ffb-46d5-bb90-07e4d82531cd",
     "severity": "HIGH",
+    "failure_category": "OPTICAL",
     "fault_description": "Deuterium lamp fails ignition test; error code E-04 during optical initialization."
   }
   ```
-- **Response (`201 Created`):**
+- The asset must currently be `OPERATIONAL` and have no non-closed work order.
+  A critical report changes the asset to `DEFECTIVE`; all other approved
+  severities change it to `UNDER_MAINTENANCE`. The asset lock, new work order,
+  and immutable audit snapshots commit in one transaction.
+- **Response (`201 Created`):** A full work-order resource, including asset and
+  laboratory labels, reporter and assignee names, maintenance logs, and
+  audit-derived status history.
   ```json
   {
     "id": "4164b360-15ef-4577-bc60-d72b22bbbe85",
     "ticket_number": "WO-2026-0142",
     "asset_id": "b182fb5a-5ffb-46d5-bb90-07e4d82531cd",
     "asset_code": "HU-HiT-CHEM-0014",
-    "reported_by": "Abebe Kebede",
+    "asset_model_number": "UV-1900i",
+    "asset_manufacturer_name": "Shimadzu",
+    "laboratory_id": "f229661e-9af7-4a2d-8be4-bd8f1d467a10",
+    "laboratory_name": "Analytical Laboratory",
+    "reported_by": "5b2ab257-0a76-4f34-9782-04bc65835e02",
+    "reporter_name": "Laboratory Technician",
+    "assigned_to": null,
+    "assignee_name": null,
     "severity": "HIGH",
+    "failure_category": "OPTICAL",
     "status": "OPEN",
     "fault_description": "Deuterium lamp fails ignition test; error code E-04 during optical initialization.",
-    "created_at": "2026-11-11T14:40:00Z"
+    "verified_by": null,
+    "verifier_name": null,
+    "verification_notes": null,
+    "created_at": "2026-11-11T14:40:00Z",
+    "resolved_at": null,
+    "closed_at": null,
+    "maintenance_logs": [],
+    "status_history": [
+      {
+        "action": "WORK_ORDER_CREATED",
+        "actor_id": "5b2ab257-0a76-4f34-9782-04bc65835e02",
+        "actor_name": "Laboratory Technician",
+        "old_status": null,
+        "new_status": "OPEN",
+        "old_assignee_id": null,
+        "new_assignee_id": null,
+        "notes": null,
+        "occurred_at": "2026-11-11T14:40:00Z"
+      }
+    ]
   }
   ```
 
-### 4.2 `POST /api/v1/work-orders/{id}/logs`
-- **Description:** Log diagnostic actions and spare parts for an assigned ticket.
-- **Security:** `MAINTENANCE_TECH`, `ULMD_ADMIN`.
+### 4.2 Read and filter work orders
+- `GET /api/v1/work-orders` accepts `page` (default `1`), `size` (default
+  `20`, maximum `100`), and optional `status`, `severity`, and `asset_id`
+  filters. It returns the standard page envelope of full work-order resources.
+- `GET /api/v1/work-orders/{order_id}` returns one full resource.
+- **Read roles:** `ULMD_ADMIN`, `MAINTENANCE_TECH`, `LAB_MANAGER`,
+  `LAB_TECH`, and `AUDITOR`, subject to the scopes above.
+
+### 4.3 `PUT /api/v1/work-orders/{order_id}/assign`
+- **Security:** `ULMD_ADMIN` only.
+- **Request:** `{ "assigned_to": "<active MAINTENANCE_TECH user UUID>" }`.
+- Only an `OPEN` order can be assigned. Inactive users and users with any role
+  other than `MAINTENANCE_TECH` are rejected with `422`. Successful assignment
+  changes the state to `ASSIGNED` and writes an immutable before/after snapshot.
+
+### 4.4 `PUT /api/v1/work-orders/{order_id}/status`
+- **Security:** The currently assigned `MAINTENANCE_TECH` only.
+- **Request:** `{ "status": "IN_PROGRESS" }` or
+  `{ "status": "AWAITING_PARTS" }`.
+- Allowed transitions are `ASSIGNED -> IN_PROGRESS`,
+  `IN_PROGRESS -> AWAITING_PARTS`, and `AWAITING_PARTS -> IN_PROGRESS`.
+  Invalid transitions return `409 Conflict`.
+
+### 4.5 `POST /api/v1/work-orders/{order_id}/logs`
+- **Description:** Record a repair activity, resolving the order for custodian
+  verification.
+- **Security:** The assigned `MAINTENANCE_TECH`, or `ULMD_ADMIN` as allowed by
+  the role matrix. In either case, the order must be `IN_PROGRESS` and have an
+  assigned technician; the log is linked to that assigned technician.
 - **Request Body (`application/json`):**
   ```json
   {
@@ -322,22 +394,35 @@ The API returns `401` when unauthenticated, `403` for a role or laboratory-scope
     "outcome_condition": "OPERATIONAL"
   }
   ```
-- **Response (`201 Created`):**
+- `labor_hours` must be between `0` and `999.99`; `outcome_condition` is
+  `OPERATIONAL`, `REPAIRED_DEGRADED`, or `UNREPAIRABLE`. The log, status
+  transition to `RESOLVED`, and audit snapshots commit together.
+- **Response (`201 Created`):** The updated full `WorkOrderRead` resource,
+  including the appended maintenance log. The log item has the following shape:
   ```json
   {
-    "id": "7f9a2e1d-4c3b-4a5f-8e9a-1b2c3d4e5f6a",
-    "work_order_id": "4164b360-15ef-4577-bc60-d72b22bbbe85",
-    "technician_name": "Taye Belay (Tech Unit)",
-    "actions_taken": "Replaced deuterium lamp assembly; cleaned optical mirrors; executed photometric self-test.",
-    "labor_hours": 2.50,
-    "outcome_condition": "OPERATIONAL",
-    "created_at": "2026-11-11T16:00:00Z"
+    "id": "4164b360-15ef-4577-bc60-d72b22bbbe85",
+    "status": "RESOLVED",
+    "maintenance_logs": [
+      {
+        "id": "7f9a2e1d-4c3b-4a5f-8e9a-1b2c3d4e5f6a",
+        "work_order_id": "4164b360-15ef-4577-bc60-d72b22bbbe85",
+        "technician_id": "2e9deba2-cade-4d4d-bf20-8db7f7b7a427",
+        "technician_name": "Maintenance Technician",
+        "actions_taken": "Replaced the lamp and verified the baseline.",
+        "spare_parts_used": "Lamp assembly",
+        "labor_hours": 2.5,
+        "outcome_condition": "OPERATIONAL",
+        "created_at": "2026-11-11T16:00:00Z"
+      }
+    ]
   }
   ```
 
-### 4.3 `PUT /api/v1/work-orders/{id}/close`
-- **Description:** Custodian Lab Manager signs off on completed repair, closing ticket and restoring equipment to operational status.
-- **Security:** `LAB_MANAGER`, `ULMD_ADMIN`.
+### 4.6 `PUT /api/v1/work-orders/{order_id}/close`
+- **Description:** Verify or reject a resolved repair.
+- **Security:** The custodian `LAB_MANAGER` for the asset's laboratory or
+  `ULMD_ADMIN`.
 - **Request Body (`application/json`):**
   ```json
   {
@@ -345,12 +430,25 @@ The API returns `401` when unauthenticated, `403` for a role or laboratory-scope
     "verification_notes": "Conducted baseline scan on standard reference water sample; absorbance matches calibration curve."
   }
   ```
-- **Response (`200 OK`):**
-  ```json
-  {
-    "id": "4164b360-15ef-4577-bc60-d72b22bbbe85",
-    "status": "CLOSED",
-    "asset_status": "OPERATIONAL",
-    "closed_at": "2026-11-11T16:15:00Z"
-  }
-  ```
+- With `confirmed: true`, only the latest `OPERATIONAL` outcome may close the
+  order; the order becomes `CLOSED` and the asset returns to `OPERATIONAL`.
+  `REPAIRED_DEGRADED` and `UNREPAIRABLE` closure policy is unresolved and
+  returns `409 Conflict`. With `confirmed: false`, the order returns to
+  `IN_PROGRESS` with the verification notes retained.
+- The order, asset status, and immutable audit snapshots are committed in one
+  transaction. Both outcomes return `200 OK` with the full updated work-order
+  resource.
+
+### 4.7 Workflow boundary and errors
+- Implemented workflow: `OPEN -> ASSIGNED -> IN_PROGRESS`, optional
+  `AWAITING_PARTS -> IN_PROGRESS`, then `RESOLVED -> CLOSED` after verification.
+  A failed verification returns the order to `IN_PROGRESS`.
+- The conditional `AWAITING_APPROVAL` state in FR-007 / DEC-02 is not present
+  in the current schema or API. External-parts approval criteria, approving
+  authority, and required evidence need stakeholder confirmation first.
+- The proposed local routine-maintenance workflow (DEC-03) is not implemented.
+  Fault reports always use the approved work-order flow.
+- Common errors: `401` for missing/invalid authentication, `403` for
+  role/scope violations, `404` for an unknown asset or work order, `409` for
+  invalid asset state, duplicate active order, invalid transition, or
+  unresolved outcome policy, and `422` for malformed or out-of-range fields.

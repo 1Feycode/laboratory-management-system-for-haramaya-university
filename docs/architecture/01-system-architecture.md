@@ -99,7 +99,7 @@ All API error responses follow the standard RFC 7807 specification:
 
 The MVP does not introduce a separate notification service, message broker, or persistent `notifications` table. Alerts are **derived views** over authoritative workflow state:
 
-- **Work order dispatch queue:** all `work_orders` with status `OPEN` or `AWAITING_APPROVAL`, ordered by severity and age.
+- **Work order dispatch queue:** `work_orders` with status `OPEN`, ordered by severity and age. `AWAITING_APPROVAL` is only a proposed DEC-02 state and is not implemented pending stakeholder confirmation.
 - **Transfer inbox:** all `asset_transfers` with status `PENDING_RECEIVER` for the destination Lab Manager, and `PENDING_ULMD` for ULMD administrators.
 - **Calibration warning queue:** assets whose `next_calibration_due` falls within the configured warning window, plus overdue assets.
 - **Dashboard badges:** counts computed from the same queries.

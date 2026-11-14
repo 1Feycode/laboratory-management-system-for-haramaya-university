@@ -23,8 +23,9 @@ The system bridges decentralized laboratory ownership with the centralized stand
 - [x] **Stage 3: Organizational Structure** *(Implemented: colleges, departments, laboratories, and rooms)*
 - [x] **Stage 4: Asset Management** *(Implemented and verified: asset register, categories, QR lookup, and audit history)*
 - [x] **Stage 5: Asset Assignment and Transfer** *(Implemented: dual approval, location history, and transfer audit events)*
+- [x] **Stage 6: Maintenance Management** *(Implemented and verified: fault reporting, dispatch, repair logs, verification, and history)*
 
-> **Notice:** Stages 1–5 provide the foundation, identity/access, organizational hierarchy, asset register, and custody transfer workflow. Maintenance work orders, calibration workflows, and business reporting are not implemented. See the [implementation progress report](docs/development/implementation-progress.md).
+> **Notice:** Stages 1–6 are implemented. Calibration workflows and business reporting are not implemented. See the [implementation progress report](docs/development/implementation-progress.md).
 
 ---
 
@@ -52,7 +53,7 @@ The system bridges decentralized laboratory ownership with the centralized stand
 - **Target Host:** Windows 10/11 laptop (8 GB RAM constraint); PostgreSQL runs in Docker Desktop
 - **Version Control:** Git & GitHub
 
-## Local Setup and Stage 5
+## Local Setup and Implemented Stages
 
 The backend runs directly on Windows and connects to the PostgreSQL container through the published loopback port (`127.0.0.1`).
 
@@ -78,7 +79,7 @@ The backend runs directly on Windows and connects to the PostgreSQL container th
    ```powershell
    .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
    ```
-   The migrations create the approved identity, organizational hierarchy, asset category, asset, transfer, and append-only audit tables, and the initial migration seeds the five approved roles. The interactive CLI provisions the first `ULMD_ADMIN`; no default account or password is created.
+   The migrations create the approved identity, organizational hierarchy, asset category, asset, transfer, maintenance, and append-only audit tables, and the initial migration seeds the five approved roles. The interactive CLI provisions the first `ULMD_ADMIN`; no default account or password is created.
    API documentation is available at `http://127.0.0.1:8000/docs`; liveness is at `/health` and database connectivity at `/health/ready`.
 5. In another terminal, if `frontend/.env.local` does not already exist, copy `frontend/.env.example` to it; preserve any existing local settings. Then start React:
    ```powershell
@@ -108,6 +109,10 @@ The unconditional manufacturer/serial uniqueness constraint remains unchanged, s
 ### Stage 5 Asset Assignment and Transfer
 
 Initial assignment remains part of asset registration and is captured in its creation audit snapshot. Open **Custody transfers** to initiate a later move, accept receipt at the destination, and complete final ULMD approval. The asset remains at its origin and is locked as `TRANSFER_PENDING` until approval or rejection. Completed transfer rows preserve the origin and destination laboratory/room IDs; audit snapshots preserve each status transition and location change. No separate assignment table is part of the approved schema. `ULMD_ADMIN`, designated `LAB_MANAGER`, and read-only `AUDITOR` roles can access the transfer view; manager scope and every action are independently checked by the API. See the [transfer API specification](docs/api/api-specification.md#39-custody-transfer-endpoints), [transfer workflow](docs/workflows/asset-transfer.mmd), and [implementation progress report](docs/development/implementation-progress.md).
+
+### Stage 6 Maintenance Management
+
+The `/maintenance` interface supports scoped fault reporting, ULMD technician assignment, repair activity and parts/labor records, custodian verification, and audit-backed history. The conditional `AWAITING_APPROVAL` state and closure of degraded/unrepairable outcomes remain unresolved and are not enabled without stakeholder decisions. See [maintenance API details](docs/api/api-specification.md#4-maintenance--work-order-endpoints), [open maintenance decisions](docs/design/phase-2-open-decisions.md#3-stage-6-maintenance-decision-boundaries), and the [implementation progress report](docs/development/implementation-progress.md).
 
 ### Backend Verification
 
@@ -180,4 +185,5 @@ If FastAPI is later run inside Compose, configure its database host as the Compo
 - **Stage 3: Organizational Structure** - Complete for the approved college/department/laboratory/room entities.
 - **Stage 4: Asset Management** - Complete for asset registration, categories, QR lookup, search, and asset audit snapshots.
 - **Stage 5: Asset Assignment and Transfer** - Complete for the approved dual-authorization transfer workflow and location history.
-- **Next Stage: Maintenance and Calibration** - Not started; do not infer those workflows are available from the asset register or transfer module.
+- **Stage 6: Maintenance Management** - Complete for the approved work-order scope; see the maintenance section of the [implementation progress report](docs/development/implementation-progress.md).
+- **Calibration and later business modules** - Not implemented; do not infer those workflows are available from the asset register or transfer module.

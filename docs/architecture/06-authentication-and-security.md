@@ -84,6 +84,16 @@ The approved matrix does not specify which roles may administer asset categories
 
 Transfer creation is restricted to `ULMD_ADMIN` and the designated manager of the origin laboratory. Receiver acceptance is restricted to `ULMD_ADMIN` or the designated manager of the target laboratory; only `ULMD_ADMIN` can perform final approval or reject a transfer awaiting approval. A target Lab Manager may reject a transfer awaiting receipt. Transfer listing and detail reads are available to `ULMD_ADMIN`, `AUDITOR`, and `LAB_MANAGER`; lab managers are limited to transfers whose origin or destination is a laboratory they currently manage. Every transition is revalidated in the backend, regardless of frontend visibility.
 
+### Stage 6 maintenance authorization
+
+- Fault reports are limited to `LAB_TECH` accounts in the asset department, the designated manager of the asset laboratory, and `ULMD_ADMIN`.
+- `ULMD_ADMIN` assigns only active `MAINTENANCE_TECH` accounts. A Maintenance Technician can read and transition only orders assigned to that account.
+- The assigned Maintenance Technician and `ULMD_ADMIN` may submit a maintenance activity for an in-progress order; the log records the assigned technician as the servicing technician.
+- Repair verification is limited to the designated Lab Manager for that laboratory or `ULMD_ADMIN`. The backend checks this scope independently of the React action controls.
+- `AUDITOR` has read-only university-wide access. Lab Managers are limited to laboratories they manage; Lab Technicians are limited to their department.
+- Work-order, asset-status, maintenance-log, and audit-snapshot changes are committed in the same PostgreSQL transaction. Audit rows continue to use the append-only `audit_logs` table and its existing database protection.
+- `AWAITING_APPROVAL` and the degraded/unrepairable closure policy are not implemented because the corresponding approval and disposition rules remain unresolved.
+
 ---
 
 ## 4. Security Implementation Rules

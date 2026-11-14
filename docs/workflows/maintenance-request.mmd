@@ -1,29 +1,35 @@
 flowchart TD
-    Discover[Technician Discovers Malfunction] --> ScanBench[Scan Physical QR Code at Bench]
-    ScanBench --> Passport[Display Digital Asset Passport]
-    Passport --> ClickFault[Click 'Report Fault']
-    
-    ClickFault --> Form[Enter Fault Severity: Low/Med/High/Critical<br/>Failure Category & Symptom Description]
-    Form --> Submit[Submit Ticket]
-    
-    Submit --> LockCheck{Severity Critical?}
-    LockCheck -- Yes --> SetDefective[Asset Condition: DEFECTIVE]
-    LockCheck -- No --> SetMaint[Asset Condition: UNDER_MAINTENANCE]
-    
-    SetDefective & SetMaint --> CreateTicket[(Create Work Order: WO-YYYY-XXXX<br/>Status: OPEN)]
-    CreateTicket --> AlertTechUnit[ULMD Technology Unit Queue Alerted]
-    
-    AlertTechUnit --> AssignTech[Technology Unit Assigns Technician<br/>Status: ASSIGNED]
-    AssignTech --> AcceptTicket[Technician Accepts Ticket<br/>Status: IN_PROGRESS]
-    
-    AcceptTicket --> BenchWork[Technician Executes Bench Diagnostics & Repair]
-    BenchWork --> LogWork[Submit Maintenance Log:<br/>Actions Taken, Parts Used, Labor Hours,<br/>Outcome Condition: OPERATIONAL]
-    LogWork --> TicketResolved[Work Order Status: RESOLVED]
-    
-    TicketResolved --> CustodianVerify{Custodian Lab Manager<br/>Verifies Operation?}
-    CustodianVerify -- Test Fails --> Reopen[Return Ticket to IN_PROGRESS<br/>with Feedback Notes]
-    Reopen --> BenchWork
-    
-    CustodianVerify -- Test Passes --> CloseTicket[Work Order Status: CLOSED<br/>Asset Condition: OPERATIONAL]
-    CloseTicket --> Audit[(Append Immutable Audit Record)]
-    Audit --> Done([Instrument Returned to Active Service])
+    Discover[Laboratory Technician discovers malfunction] --> Passport[Open asset passport and select Report Fault]
+    Passport --> Form[Enter severity, failure category, and fault description]
+    Form --> Submit[Submit fault report]
+    Submit --> Operational{Asset is OPERATIONAL and has no active work order?}
+    Operational -- No --> RejectReport[Reject report; preserve current asset state]
+    Operational -- Yes --> Severity{Severity is CRITICAL?}
+    Severity -- Yes --> Defective[Set asset status to DEFECTIVE]
+    Severity -- No --> Maintenance[Set asset status to UNDER_MAINTENANCE]
+    Defective --> Ticket[Create WO-YYYY-#### work order as OPEN]
+    Maintenance --> Ticket
+    Ticket --> Assign[ULMD_ADMIN assigns active MAINTENANCE_TECH]
+    Assign --> Start[Assigned technician starts work; status IN_PROGRESS]
+    Start --> Parts{Waiting for parts?}
+    Parts -- Yes --> Waiting[Set AWAITING_PARTS]
+    Waiting --> Resume[Parts available; resume IN_PROGRESS]
+    Resume --> Repair[Diagnose and repair instrument]
+    Parts -- No --> Repair
+    Repair --> Log[Record actions, parts, labor, and approved outcome]
+    Log --> Outcome{Outcome condition}
+    Outcome -- OPERATIONAL --> Resolved[Set work order RESOLVED]
+    Outcome -- REPAIRED_DEGRADED --> Policy[Closure behavior requires stakeholder decision]
+    Outcome -- UNREPAIRABLE --> Policy
+    Policy --> NonOperationalReview{Custodian requests more repair work?}
+    NonOperationalReview -- Yes --> RejectRepair
+    NonOperationalReview -- No --> Pending([Do not close or decommission until policy is approved])
+    Resolved --> Verify{Custodian Lab Manager or ULMD_ADMIN verifies?}
+    Verify -- No --> RejectRepair[Record notes; return work order to IN_PROGRESS]
+    RejectRepair --> Repair
+    Verify -- Yes --> Closed[Set work order CLOSED and asset OPERATIONAL]
+    Closed --> Audit[Append immutable work-order and asset audit snapshots]
+    Audit --> Done([Maintenance history retained])
+    RejectReport --> End([No work order created])
+
+    %% AWAITING_APPROVAL for external-parts procurement remains excluded pending DEC-02 approval.

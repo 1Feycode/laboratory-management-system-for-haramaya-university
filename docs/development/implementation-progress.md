@@ -1,5 +1,40 @@
 # Implementation Progress
 
+## Stage 6: Maintenance Management
+
+**Status:** Implemented and verified
+**Completed:** 2026-11-14
+
+### Delivered
+
+- Added the approved `WorkOrder` and `MaintenanceLog` SQLAlchemy models and additive Alembic revision `20261114_05_maintenance`, following `20261113_04`. The revision adds only `work_orders` and `maintenance_logs`; prior migrations and existing data are unchanged.
+- Added validated maintenance request/response schemas, service-layer workflows, and authenticated endpoints for fault reports, scoped paginated work-order reads, ULMD technician assignment, assigned-technician status transitions, repair activities, and custodian verification/rejection.
+- Fault reporting locks an `OPERATIONAL` asset as `DEFECTIVE` for critical severity or `UNDER_MAINTENANCE` for other approved severities. Ticket creation, asset status updates, logs, state changes, and append-only JSONB audit snapshots are transactional.
+- Enforced the role matrix in the API: Lab Technicians are department-scoped, Lab Managers are scoped to their managed laboratories, Maintenance Technicians can act on assigned orders, and ULMD Admin / Auditors have university-wide read access. Only active `MAINTENANCE_TECH` users can be assigned.
+- Added the React `/maintenance` queue, fault report form, status filter and pagination, role-aware assignment and work controls, repair log form, verification/rejection, and audit-backed status and maintenance history. Operational asset passports provide a prefilled fault-report link.
+- No extra maintenance assignment/activity/outcome tables, local-repair path, calibration, or unrelated modules were introduced.
+
+### Unresolved requirements and boundaries
+
+- **DEC-02:** `AWAITING_APPROVAL` remains a proposed state. External-parts thresholds, approver, evidence, and rejection behavior are unspecified; the state and budget approval process are not implemented.
+- The approved outcomes include `REPAIRED_DEGRADED` and `UNREPAIRABLE`, but do not define safe degraded return-to-service authorization or unrepairable disposition. The API permits recording these outcomes but only permits confirmed closure for `OPERATIONAL`; otherwise it returns `409 Conflict`. Stakeholder approval is required before changing this behavior.
+- **DEC-03:** The proposed Lab Manager local routine-repair workflow is not implemented.
+- No notifications, procurement flow, or calibration features were added.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| Maintenance-focused API tests | Passed; 5 tests cover fault scope/validation, severity lock, duplicate active report, assignment-role validation, unauthorized technician actions, parts pause/resume, repair and verification history, outcome boundary, and transaction rollback. |
+| Full backend suite | Passed; 37 tests across Stages 1–6. The existing Starlette/httpx test-client deprecation warning remains non-blocking. |
+| Frontend production build | Passed with TypeScript and Vite. |
+| Backend compilation, app import, and OpenAPI paths | Passed; all six work-order paths are registered. |
+| Alembic graph and migration | Passed; `20261114_05` applied as the sole head after `20261113_04`. |
+| Generated migration SQL and model comparison | Passed; SQL creates only the approved tables/constraints/indexes; `alembic check` reports no pending schema operations. |
+| Audit append-only protection | Passed; `audit_logs_append_only` remains enabled after migration. The maintenance migration does not alter audit triggers. |
+| Existing PostgreSQL data | Preserved; migration ran against `hu_lab_management` without reset or deletion. A post-migration count found one work order and zero maintenance logs; no work-order records were inserted by these tests or migration. The observed row was left untouched. All automated tests used the separate `_test` database. |
+| Frontend ESLint command | Still blocked by pre-existing setup: ESLint 10.14.0 has no `eslint.config.*` file in the frontend project. The production TypeScript/Vite build passes; no lint configuration or unrelated dependencies were added in this stage. |
+
 ## Stage 5: Asset Assignment and Transfer
 
 **Status:** Implemented and verified
@@ -57,7 +92,7 @@
 - **Location exception:** BR-004 requires one current room and laboratory, while the possible shared-instrument note defines no exception workflow or persisted authorization. Existing parent validation remains; no multi-location relationship or bypass was added. Stakeholder approval is required before any exception.
 - **Migration/data preservation:** no Alembic revision was needed for these decision outcomes. No application-database records or existing migration history were changed.
 - **Audit user foreign key:** `audit_logs.user_id ON DELETE SET NULL` would require changing an audit row, which the append-only trigger blocks. Current user management deactivates accounts and exposes no physical deletion. Production DB role hardening is still required because a database owner/superuser can disable triggers.
-- At Stage 4 completion, only asset and category mutations were recorded in the audit slice. Stage 5 adds same-transaction transfer and related asset status/location events. Audit events for authentication, user changes, maintenance, and calibration, plus general audit browsing, remain unimplemented.
+- At Stage 4 completion, only asset and category mutations were recorded in the audit slice. Stage 5 subsequently added transfer and asset status/location events; Stage 6 adds maintenance events. Authentication/user and calibration audit events, plus general audit browsing, remain unimplemented.
 
 ### Verification
 

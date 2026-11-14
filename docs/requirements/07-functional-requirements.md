@@ -92,6 +92,8 @@ This document provides detailed, testable, and uniquely numbered functional requ
 - **Priority:** Must Have.
 - **Acceptance Criteria:** Ticket cannot transition to `RESOLVED` without a non-empty maintenance log; closure must persist the verifying Lab Manager UUID and verification notes.
 
+**Implementation clarification:** The `AWAITING_APPROVAL` exception is conditional on the unresolved DEC-02 external-parts approval decision. It is not implemented in the Stage 6 schema or API. The approved materials do not define approval thresholds or evidence. The allowed maintenance outcomes include `REPAIRED_DEGRADED` and `UNREPAIRABLE`, but the approved closure flow only specifies restoration to `OPERATIONAL`; the closure behavior for those outcomes also requires stakeholder clarification. See [Stage 6 open decisions](../design/phase-2-open-decisions.md#3-stage-6-maintenance-decision-boundaries) and the maintenance section of the [API specification](../api/api-specification.md#4-maintenance--work-order-endpoints).
+
 ### FR-008: Calibration Tracking and Scheduling
 - **Description:** The system must record precision calibration events and track upcoming due dates.
 - **Responsible Actor:** `MAINTENANCE_TECH`, `ULMD_ADMIN`.

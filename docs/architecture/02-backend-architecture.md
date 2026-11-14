@@ -113,7 +113,7 @@ backend/
 - **`AuthService`:** Verifies bcrypt hashes, increments failed-login counters, applies the 15-minute lockout after five failures, and issues access/refresh tokens.
 - **`AssetService`:** Validates serial number uniqueness, generates formatted `asset_code`, and constructs vector QR payloads.
 - **`TransferService`:** Enforces dual-authorization rules, locks asset condition during transfer, preserves origin/destination room history, and reassigns location foreign keys upon ULMD approval.
-- **`MaintenanceService`:** Manages work order ticket lifecycle (`OPEN` -> `ASSIGNED` -> `IN_PROGRESS` -> `RESOLVED` -> `CLOSED`), supports `AWAITING_PARTS`/`AWAITING_APPROVAL`, updates asset condition flags, and records labor hours, spare parts, and custodian verification.
+- **`MaintenanceService`:** Manages the implemented work order lifecycle (`OPEN` -> `ASSIGNED` -> `IN_PROGRESS` -> `RESOLVED` -> `CLOSED`), supports the approved `AWAITING_PARTS` pause, updates asset condition flags, and records labor hours, spare parts, custodian verification, and immutable audit snapshots. `AWAITING_APPROVAL` is excluded pending DEC-02 stakeholder confirmation.
 - **`CalibrationService`:** Calculates due/overdue status, records certificates and accreditation body, and updates asset calibration dates.
 - **`AuditService`:** Writes synchronous append-only audit records with before/after JSONB snapshots.
 
@@ -135,8 +135,12 @@ backend/
 
 The Stage 4 slice is implemented in `app/api/v1/assets.py`, `app/schemas/asset.py`, `app/services/asset_service.py`, and `app/models/asset.py`. Routes delegate transactions and policy checks to the service layer. It implements category maintenance under the current provisional `ULMD_ADMIN`-only restriction, asset registration, server-side code sequencing, category/location validation, authenticated QR SVG rendering and lookup, filtered asset reads, and limited metadata updates. Asset writes require `ULMD_ADMIN` or the designated manager of the laboratory; neither location nor status is editable through the asset metadata API.
 
-Asset and category before/after snapshots are inserted into the approved `audit_logs` table in the same transaction. Migration `20261113_03_assets` installs a PostgreSQL trigger to reject audit-row updates and deletes. Work-order, calibration, reporting, and general audit-browsing services shown in the target architecture remain unimplemented.
+Asset and category before/after snapshots are inserted into the approved `audit_logs` table in the same transaction. Migration `20261113_03_assets` installs a PostgreSQL trigger to reject audit-row updates and deletes. At Stage 4 completion, work-order, calibration, reporting, and general audit-browsing services shown in the target architecture remained unimplemented.
 
 ## 7. Stage 5 Custody Transfer Implementation
 
 The `transfers` API delegates to `transfer_service`, which locks the asset and transfer rows, validates the current state and laboratory/room relationships, applies the approved receiver-then-ULMD workflow, and writes status and asset-location audit snapshots in the same transaction. An active transfer leaves the asset at its origin with `TRANSFER_PENDING`; approval moves the current asset foreign keys to the destination and restores `OPERATIONAL`, while rejection restores the original operational state and location. Transfer read access is limited to `ULMD_ADMIN`, designated `LAB_MANAGER` actors for either endpoint laboratory, and read-only `AUDITOR` users. Parent reassignment is blocked when a laboratory or room is part of transfer history. There is no separate assignment table or API.
+
+## 8. Stage 6 Maintenance Implementation
+
+The `work-orders` API delegates to `maintenance_service`. It creates fault reports only for operational assets, locks critical assets as `DEFECTIVE` and other reported assets as `UNDER_MAINTENANCE`, assigns active Maintenance Technicians, enforces department/laboratory/assigned-ticket read scope, and records maintenance logs and status snapshots transactionally. The additive `20261114_05_maintenance` revision creates only the approved `work_orders` and `maintenance_logs` tables. `AWAITING_APPROVAL` and the proposed DEC-03 local-repair path are not implemented. Confirmation of degraded/unrepairable closure behavior remains outstanding; only `OPERATIONAL` outcomes can currently close an order.

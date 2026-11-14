@@ -128,6 +128,9 @@ class Asset(Base):
     transfers: Mapped[list["AssetTransfer"]] = relationship(
         back_populates="asset", passive_deletes="all"
     )
+    work_orders: Mapped[list["WorkOrder"]] = relationship(
+        back_populates="asset", passive_deletes="all"
+    )
 
 
 class AssetAuditLog(Base):

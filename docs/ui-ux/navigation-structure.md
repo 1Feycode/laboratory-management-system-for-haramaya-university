@@ -22,8 +22,8 @@ This document maps the user navigation flow, route hierarchy, and role-based men
 │   │       └── [QR Link Entry]  /assets/scan?code=...   │
 │   ├── [Asset Categories]       /admin/asset-categories │
 │   ├── [Maintenance Hub]        /maintenance            │
-│   │   ├── [Submit Fault]       /maintenance/report     │
-│   │   └── [Ticket Details]     /maintenance/:id        │
+│   │   ├── [Submit Fault]       Embedded in page        │
+│   │   └── [Ticket Details]     Work-order cards        │
 │   ├── [Calibration Log]        /calibrations           │
 │   ├── [Custody Transfers]      /transfers              │
 │   ├── [Reports & Analytics]    /reports                │
@@ -44,8 +44,7 @@ This document maps the user navigation flow, route hierarchy, and role-based men
 | **Asset Inventory** | `/assets` | Visible | Visible | Visible | Visible | Visible |
 | **QR Passport Entry** | `/assets/scan?code=...` | Protected | Protected | Protected | Protected | Protected |
 | **Register New Asset**| `/assets/register` | Visible | Hidden | Visible | Hidden | Hidden |
-| **Maintenance Hub** | `/maintenance` | Full Queue | My Assigned | My Lab | My Lab | Read-Only |
-| **Submit Fault** | `/maintenance/report`| Visible | Hidden | Visible | Visible | Hidden |
+| **Maintenance Hub & Submit Fault** | `/maintenance` | Queue, report, assign, log, verify | Assigned queue, status, log | Own-lab queue, report, verify | Department queue, report | Read-only |
 | **Calibration Log** | `/calibrations` | Full Access | Record Entry| View Due | View Due | Read-Only |
 | **Custody Transfers** | `/transfers` | Final Approval| Hidden | Initiate/Accept| Hidden | Read-Only |
 | **Reports & Analytics**| `/reports` | Full Access | Hidden | Dept Scoped | Hidden | Full Access |
@@ -59,6 +58,8 @@ The implemented hierarchy screen is restricted to `ULMD_ADMIN` and provides tabs
 The Stage 4 asset list and passport are available to all authenticated roles. Registration and metadata editing are guarded for `ULMD_ADMIN` and `LAB_MANAGER`; the backend additionally verifies that a manager is assigned to the asset's laboratory. The QR link-entry route requires authentication, resolves the URL's asset code, and redirects to the passport; the original path and query are preserved through login. Asset-category administration is currently `ULMD_ADMIN` only as a provisional restriction pending policy confirmation.
 
 Stage 5 implements `/transfers` for `ULMD_ADMIN`, `LAB_MANAGER`, and read-only `AUDITOR`. Lab Managers see only transfers involving laboratories they currently manage. Initiation, destination acceptance/rejection, and ULMD approval controls are displayed by role and transfer status; the API independently checks the actor's current designated-laboratory relationship.
+
+Stage 6 implements one `/maintenance` page. Fault reporting is embedded in the page and can also be opened from an operational asset passport with the asset code pre-filled. The API scopes Lab Managers to their managed laboratories, Lab Technicians to their department, and Maintenance Technicians to assigned orders. ULMD Admin and Auditors have university-wide read access; assignment, technician activity, and verification actions are independently authorized by the API. There are no separate report or ticket-detail routes.
 
 ---
 

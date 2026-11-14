@@ -53,9 +53,7 @@ frontend/
 │   │   │   ├── AssetDetailPage.tsx
 │   │   │   └── AssetRegistrationPage.tsx
 │   │   ├── transfers/TransferWorkflowPage.tsx
-│   │   ├── maintenance/
-│   │   │   ├── WorkOrderListPage.tsx
-│   │   │   └── WorkOrderDetailPage.tsx
+│   │   ├── MaintenancePage.tsx   # Fault report, role-scoped queue, work and verification
 │   │   ├── calibrations/CalibrationSchedulePage.tsx
 │   │   ├── reports/
 │   │   │   ├── ReportsDashboardPage.tsx
