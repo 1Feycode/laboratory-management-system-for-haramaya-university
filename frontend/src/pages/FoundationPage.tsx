@@ -24,21 +24,22 @@ export default function FoundationPage() {
 
   const statusText = {
     checking: "Checking backend connection…",
-    available: "Backend is reachable",
-    unavailable: "Backend is not reachable",
+    available: "Backend and database are ready",
+    unavailable: "Backend or database is unavailable",
   }[status];
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
       <p className="text-sm font-semibold uppercase tracking-wide text-university-700">
-        Stage 2 · Identity and access
+        Application connectivity
       </p>
       <h1 className="mt-3 text-3xl font-semibold text-slate-900">
         Laboratory Asset Management
       </h1>
       <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-        Authentication and role-based user provisioning are available. Asset,
-        maintenance, transfer, and calibration modules are not implemented yet.
+        The authenticated workspace provides role-based access to asset,
+        maintenance, transfer, calibration, reporting, and administration
+        workflows.
       </p>
       <div className="mt-8 flex items-center gap-3" role="status" aria-live="polite">
         <span

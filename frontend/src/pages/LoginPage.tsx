@@ -119,7 +119,7 @@ export default function LoginPage() {
             {submitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
-        <Link className="mt-6 inline-block text-sm text-university-700 underline" to="/foundation">
+        <Link className="mt-6 inline-block text-sm text-university-blue-700 underline" to="/foundation">
           View system health
         </Link>
       </section>

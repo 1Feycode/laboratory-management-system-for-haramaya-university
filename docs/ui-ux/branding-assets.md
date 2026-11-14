@@ -2,7 +2,7 @@
 
 ## Asset sources and local copies
 
-Both source assets were retrieved from the official Haramaya University website
+All source assets were retrieved from the official Haramaya University website
 and are bundled locally so the application does not need to request images from
 the public website at runtime.
 
@@ -10,6 +10,7 @@ the public website at runtime.
 | --- | --- | --- |
 | `frontend/public/assets/haramaya-university-logo.png` | <https://www.haramaya.edu.et/wp-content/uploads/2026/03/cropped-hu1log.png> | Official transparent PNG wordmark, 567 x 108 pixels. The image is kept in its original format and proportions. |
 | `frontend/public/assets/haramaya-campus-background.jpg` | <https://www.haramaya.edu.et/wp-content/uploads/2019/12/main-campus-dorm-1.jpg> | Official university media-library photo titled "Haramaya University main Campus Dorms Photos". Resized proportionally to 1280 x 720 and JPEG re-encoded at quality 86 for web delivery. |
+| `frontend/public/assets/haramaya-laboratory.jpg` | Original page URL: <https://haramaya.edu.et/cncs/wp-content/uploads/sites/8/2021/04/20180817_085747.jpg>; downloaded via the `www` URL in the page's `srcset`: <https://www.haramaya.edu.et/cncs/wp-content/uploads/sites/8/2021/04/20180817_085747.jpg> | Referenced by the official [Facilities page](https://www.haramaya.edu.et/cncs/research/facilities/) (page title: "Facilities"; source image title/alt: "Student Learning at Lab"). The original is 5312 x 2988; the local copy is 1600 x 900, JPEG re-encoded at quality 88. |
 | `frontend/public/assets/favicon.png` | Derived from the official logo above | A square crop of the original logo's seal, resized to 96 x 96 pixels. No separate or reconstructed emblem was used. |
 
 ## Color treatment

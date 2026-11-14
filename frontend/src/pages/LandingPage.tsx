@@ -67,13 +67,13 @@ export default function LandingPage() {
           >
             <a
               href="#features"
-              className="hidden rounded-sm text-slate-700 hover:text-university-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-university-700 sm:inline"
+              className="hidden rounded-sm text-university-blue-700 hover:text-university-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-university-700 sm:inline"
             >
               Features
             </a>
             <a
               href="#overview"
-              className="hidden rounded-sm text-slate-700 hover:text-university-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-university-700 sm:inline"
+              className="hidden rounded-sm text-university-blue-700 hover:text-university-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-university-700 sm:inline"
             >
               About the system
             </a>
@@ -173,6 +173,43 @@ export default function LandingPage() {
           </div>
         </section>
 
+        <section
+          aria-labelledby="laboratory-care-title"
+          className="border-b border-university-100 bg-university-50 py-14 sm:py-20"
+        >
+          <div className="mx-auto grid max-w-7xl items-center gap-8 px-5 sm:px-8 lg:grid-cols-2 lg:gap-16">
+            <figure className="overflow-hidden rounded-3xl border border-white bg-white shadow-lg ring-1 ring-university-900/10">
+              <img
+                src="/assets/haramaya-laboratory.jpg"
+                alt="An instructor in a lab coat demonstrates laboratory equipment to students gathered around a lab bench."
+                className="aspect-[16/10] w-full object-cover object-center"
+                loading="lazy"
+                decoding="async"
+              />
+            </figure>
+            <div>
+              <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.14em] text-university-blue-700">
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 rounded-full bg-university-500"
+                />
+                Laboratory learning
+              </p>
+              <h2
+                id="laboratory-care-title"
+                className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl"
+              >
+                Caring for Haramaya University's Laboratory Equipment
+              </h2>
+              <p className="mt-4 max-w-2xl leading-7 text-slate-600">
+                Supporting the responsible management of laboratory assets
+                through equipment identification, maintenance tracking, repair
+                history, and calibration records.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <section id="features" className="scroll-mt-8 py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-5 sm:px-8">
             <div className="max-w-2xl">
@@ -242,10 +279,11 @@ export default function LandingPage() {
           <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-5 sm:px-8 md:flex-row md:items-center">
             <div>
               <h2 className="text-2xl font-semibold tracking-tight">
-                Access the laboratory asset system
+                Access the Laboratory Asset System
               </h2>
               <p className="mt-2 max-w-2xl leading-7 text-white/80">
-                Sign in with an account provisioned by a ULMD administrator.
+                Sign in with your authorized university account to manage
+                laboratory asset records and maintenance activities.
               </p>
             </div>
             <Link
