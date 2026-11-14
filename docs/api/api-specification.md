@@ -574,3 +574,91 @@ Asset passport and inventory responses include a computed `calibration_overdue`
 boolean derived from the due date. No database column, daily scheduler,
 automatic work order, notification, certificate-file upload, or preventive
 maintenance schedule is added. See [Stage 7 decision boundaries](../design/phase-2-open-decisions.md#4-stage-7-calibration-and-preventive-maintenance-boundaries).
+
+## 6. Reports and Inventory Export
+
+Reports are read-only aggregates over the approved asset, work-order,
+calibration, and organization tables. They do not create persisted analytics
+records or expose the audit ledger. All report scopes are applied in the
+backend: `ULMD_ADMIN` is university-wide; `LAB_MANAGER` is restricted to
+laboratories currently assigned to that user in the user's department; an
+`AUDITOR` with a department assignment is department-scoped, while an Auditor
+without one is university-wide. Explicit college or department filters can
+only narrow this scope.
+
+For dashboard and calibration-compliance requests, `within_days` is required
+and non-negative. No default due horizon is supplied. Optional `date_from` and
+`date_to` must be provided together, with `date_from <= date_to`. Dates are
+inclusive UTC calendar dates. A range filters work-order requests by
+`created_at`, completions by `closed_at`, and calibration records by
+`calibration_date`; current asset totals and current due/overdue counts are not
+historical snapshots.
+
+### `GET /api/v1/reports/dashboard`
+- **Security:** `ULMD_ADMIN`, `LAB_MANAGER`, or `AUDITOR`, with the scopes above.
+- **Query:** Required `within_days` (integer, minimum `0`); optional
+  `college_id`, `department_id`, `date_from`, and `date_to`.
+- **Response:** Current asset total and `OPERATIONAL` count; counts by
+  category and operational status; work-order total, active count
+  (`OPEN`, `ASSIGNED`, `IN_PROGRESS`), completion count, and counts by all
+  approved statuses; calibration record/pass/fail counts; overdue and
+  upcoming calibration counts; and up to ten critical open work orders and
+  due assets in each calibration list.
+- A due date earlier than UTC today is overdue; a due date from today through
+  `today + within_days` is upcoming.
+- Uptime and downtime fields are currently `null`, with
+  `availability_status: "PENDING_APPROVED_DEFINITION"` (DEC-16). No uptime
+  formula is implemented until its eligibility window, denominator, and
+  status treatment receive approval.
+- Preventive-maintenance schedule counts are not returned; there is no
+  approved schedule/activity model. “Condition” is not a separate stored
+  field; reports use `assets.operational_status`.
+- **Errors:** `403` for unauthorized roles; `422` for negative due horizon,
+  incomplete date range, invalid dates, or `date_from > date_to`.
+
+### `GET /api/v1/reports/downtime`
+- **Security:** `ULMD_ADMIN`, `LAB_MANAGER`, or `AUDITOR`, with the scopes above.
+- **Query:** Required `date_from` and `date_to`; optional `college_id` and
+  `department_id`.
+- **Response:** Current asset total, work-order requests created in the date
+  range, work orders closed in the range, current active work orders, counts
+  by approved status for requests created in the range, and request/completion/
+  active counts grouped by the assets' current college.
+- `uptime_percentage` and `downtime_asset_hours` are `null`; the response
+  includes `availability_status: "PENDING_APPROVED_DEFINITION"`. The endpoint
+  does not equate work-order age with downtime.
+- **Errors:** `403` for unauthorized roles; `422` for an invalid or reversed
+  date range.
+
+### `GET /api/v1/reports/calibration-compliance`
+- **Security:** `ULMD_ADMIN`, `LAB_MANAGER`, or `AUDITOR`, with the scopes above.
+- **Query:** Required `within_days` (integer, minimum `0`); optional
+  `college_id`, `department_id`, `date_from`, and `date_to`.
+- **Response:** Count of assets whose category requires calibration; current
+  overdue/upcoming asset counts; calibration event/pass/fail counts for the
+  requested date range (all history if no range); and up to 100 assets in each
+  due-state list.
+- **Errors:** `403` for unauthorized roles; `422` for invalid query values or
+  an incomplete date range.
+
+### `GET /api/v1/reports/inventory`
+- **Security:** `ULMD_ADMIN` or `AUDITOR`. A department-assigned Auditor is
+  restricted to that department. Lab Manager export is not enabled by the
+  approved endpoint catalog.
+- **Query:** Optional `college_id`, `department_id`, `status`,
+  `date_from`, and `date_to`. Date filters apply to asset `created_at`;
+  dates must be supplied together. `status` is one of
+  `OPERATIONAL`, `UNDER_MAINTENANCE`, `DEFECTIVE`, `TRANSFER_PENDING`, or
+  `DECOMMISSIONED`.
+- **Response:** `200 OK`, `text/csv; charset=utf-8`, attachment
+  `hu-laboratory-inventory.csv`. Columns include approved asset identity,
+  category, current organization/location, operational status, purchase,
+  commissioning, warranty, calibration, and registration dates. CSV text
+  cells beginning with spreadsheet formula characters are escaped.
+- **Errors:** `403` for unauthorized roles; `422` for invalid status, UUID, or
+  incomplete/reversed date ranges.
+
+No Excel, JSON export, preventive-maintenance report, or other export format
+is implemented. See [DEC-12](../design/phase-2-open-decisions.md#dec-12-preventive-maintenance-schedule-and-activity-design),
+[DEC-14](../design/phase-2-open-decisions.md#dec-14-calibration-reminder-horizon-and-delivery),
+and [DEC-16](../design/phase-2-open-decisions.md#dec-16-uptime-and-downtime-measurement).

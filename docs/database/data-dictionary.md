@@ -249,3 +249,27 @@ The following values are the single source of truth for application enums, API v
 ## 7. 3NF Note on Asset Location
 
 `assets` stores one `laboratory_id` (custodian laboratory) and one `room_id` (current physical room). BR-004 requires that single current location, and the API validates that the room belongs to the selected laboratory. A shared-instrument/cross-laboratory arrangement is mentioned as a possible future exception, but no approved multi-location relationship, access workflow, or persisted authorization exists; it is not implemented. Initial assignment is made during asset registration and included in its creation audit snapshot. Stage 5 records subsequent origin and destination laboratory/room IDs in `asset_transfers`; while a transfer is active, the asset remains at its origin, and the current asset location changes only after ULMD approval. There is no separate assignment table. Laboratory or room parent reassignment is blocked when transfer history references it.
+
+---
+
+## 8. Reporting and Aggregation Semantics
+
+Stage 8 adds no report tables, materialized views, or stored aggregate fields.
+Reports are computed from the existing rows and relationships:
+
+| Report value | Source and interpretation |
+|---|---|
+| Asset total / operational assets | Current `assets` rows; operational count uses `assets.operational_status = 'OPERATIONAL'`. |
+| Assets by category/status | Current `asset_categories.name` and `assets.operational_status`. There is no separate asset condition field. |
+| Work-order request counts | `work_orders.created_at` and current `work_orders.status`; date-filtered counts use inclusive UTC date boundaries. |
+| Work-order completion counts | `work_orders.closed_at` within the requested date range; without a dashboard date range, count all rows with a recorded `closed_at`. |
+| Active work orders | Current statuses `OPEN`, `ASSIGNED`, and `IN_PROGRESS`; other non-closed states remain visible in the full status distribution. |
+| Calibration history/compliance | `calibration_logs.calibration_date`, `passed`, `next_due_date`, `assets.next_calibration_due`, and `asset_categories.requires_calibration`. The caller supplies `within_days`. |
+| Inventory CSV date filter | `assets.created_at` registration date; current category, organization, room, status, and approved asset dates are exported. |
+
+FR-010 requires uptime reporting, but no approved definition identifies the
+eligible asset population, denominator, time interval, commissioning baseline,
+or status treatment. No uptime/downtime values are calculated until DEC-16 is
+approved. No preventive-maintenance counts are available because the approved
+schema has no schedule/activity entity (DEC-12). Aggregated results do not
+modify the append-only audit ledger.

@@ -106,6 +106,14 @@ Transfer creation is restricted to `ULMD_ADMIN` and the designated manager of th
 - Each calibration record and asset-date update is committed with append-only audit snapshots in the same transaction. The calibration API exposes no update/delete operation, and restrictive foreign keys preserve referenced records.
 - `within_days` is required on the due-list query. No background scheduler, notifications, failed-calibration status transition, or work-order creation is implemented pending policy clarification.
 
+### Stage 8 report authorization and scope
+
+- Dashboard, downtime/maintenance-count, and calibration-compliance endpoints are restricted to `ULMD_ADMIN`, `LAB_MANAGER`, and `AUDITOR`; the API enforces the same policy independently of route visibility.
+- `ULMD_ADMIN` has university-wide report scope. `LAB_MANAGER` is restricted to assets in laboratories whose current `manager_id` matches the user and whose department matches the user's assigned department. An `AUDITOR` with `department_id` is restricted to that department; an Auditor without a department assignment has university-wide read scope.
+- Optional college and department filters are intersected with the role scope. They cannot broaden access. Inventory CSV export is restricted to `ULMD_ADMIN` and `AUDITOR`, following the Phase 2 API catalog; it is not exposed to Lab Managers.
+- Report responses contain aggregates and limited critical/due asset summaries only; they do not expose audit snapshots or add write operations. CSV text values that could be interpreted as spreadsheet formulas are escaped.
+- Dashboard due counts require a caller-supplied `within_days`; no reminder horizon or notification behavior is inferred. Uptime/downtime values remain null until the metric definition in DEC-16 is approved. No preventive-maintenance statistics are returned because no approved schedule/activity entity exists.
+
 ---
 
 ## 4. Security Implementation Rules

@@ -16,15 +16,16 @@ This document details the layout, data elements, user interactions, and visual s
 - **Target Roles:** `ULMD_ADMIN`, `AUDITOR` (department-scoped where applicable), `LAB_MANAGER`.
 - **Layout Structure:**
   - **Top Row (Metrics Cards):**
-    1. *Total Active Assets:* Count of equipment in `OPERATIONAL` status.
-    2. *Active Work Orders:* Count of open tickets (`OPEN`, `ASSIGNED`, `IN_PROGRESS`).
-    3. *Overdue Calibrations:* Count of instruments with expired calibration deadlines.
-    4. *Fleet Availability:* Percentage of equipment operational across the university.
+    1. *Total Assets* and *Operational Assets:* Current inventory total and count in `OPERATIONAL` status.
+    2. *Active and Completed Work Orders:* Current active tickets (`OPEN`, `ASSIGNED`, `IN_PROGRESS`) and completed tickets in the selected date range.
+    3. *Calibration Counts:* Overdue instruments and instruments due within the caller-supplied horizon.
+    4. *Fleet Availability:* A percentage is a design target; calculation awaits approval of denominator, eligible assets, period, and status treatment (DEC-16).
   - **Main Grid (Two Columns):**
-    - *Left (Downtime Distribution):* Bar chart displaying open work orders grouped by college (HiT, CAES, CHMS, CCI, CVM, CNCS).
-    - *Right (Urgent Action Queue):* Priority list of `CRITICAL` fault tickets and upcoming calibrations due within 7 days.
+    - *Left (Downtime Distribution):* A downtime chart is deferred until the metric definition is approved (DEC-16).
+    - *Right (Urgent Action Queue):* Priority list of `CRITICAL` fault tickets and upcoming calibrations for a caller-supplied horizon.
 - **States:** Skeleton card loading -> Interactive dashboard -> Empty state with message if no data exists.
-- **Implementation boundary:** The current `/dashboard` route is a welcome screen only; the metrics and 7-day calibration queue above remain design targets, not implemented reports. Calibration due review is available on `/calibrations` with a caller-selected date window.
+- **Stage 8 implementation boundary:** `/dashboard` shows current asset totals and operational counts by category and status, work-order status/completion counts, critical work orders, and overdue/upcoming calibration counts and lists. Users supply the calibration due horizon; DEC-14 remains open and no reminder window is hardcoded. Uptime/downtime values are explicitly unavailable pending DEC-16. No separate asset condition field or preventive-maintenance schedule data exists, so neither is reported.
+- **Reports:** `/reports` provides date-filtered maintenance counts grouped by college and a CSV inventory download for authorized roles. CSV is the only implemented export format. Organization selectors are shown only to university-wide report users; scoped users see no organization options, and report filters cannot expand server-enforced scopes.
 
 ---
 

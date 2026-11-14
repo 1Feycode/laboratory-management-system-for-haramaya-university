@@ -1,5 +1,29 @@
 # Implementation Progress
 
+## Stage 8: Dashboard and Reporting
+
+**Status:** Implemented for supported approved metrics; uptime/downtime definition remains pending stakeholder approval
+**Completed:** 2026-11-14
+
+- Added read-only aggregate APIs for the dashboard, maintenance counts, and calibration compliance, plus a filtered inventory CSV export. No new database entities, migrations, Excel/JSON export, preventive-maintenance reports, or write operations were added.
+- The dashboard reports current asset totals/category/status counts; work-order totals, current active counts, status distribution, and completions; calibration history/pass/fail and due/overdue counts; due assets; and critical open work orders. The user supplies the calibration horizon; date ranges are optional pairs of inclusive UTC dates.
+- Implemented server-side scopes: `ULMD_ADMIN` university-wide; `LAB_MANAGER` only currently assigned laboratories in their department; department-assigned `AUDITOR` scoped to that department and an unassigned Auditor university-wide. Inventory CSV is limited to `ULMD_ADMIN` and `AUDITOR`. Filters cannot broaden an assigned scope.
+- Inventory CSV includes approved asset fields and optional college, department, status, and registration-date filters. Text values that could be interpreted as spreadsheet formulas are escaped. No report writes to the application database or audit ledger.
+- `assets.operational_status` is reported instead of an unsupported separate condition field. Preventive-maintenance counts are omitted because no approved schedule/activity entity or workflow exists (DEC-12).
+- Uptime/downtime values return an explicit pending-definition status and null metrics. FR-010 requires the metric, but its period, denominator, eligible assets, and treatment of asset states are unspecified; see DEC-16. No formula was inferred.
+- Updated the API catalog/specification, data dictionary reporting semantics, security/RBAC, screen/navigation design, testing strategy, traceability matrix, open decisions, and README.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| Targeted reporting API tests | Passed; 3 tests cover metrics, work-order counts, calibration due horizons, role scopes, date validation, empty scopes, CSV filtering/formula escaping, and complete export of 1,000 additional assets. |
+| Full backend suite | Passed; all 46 tests across Stages 1–8. One existing Starlette/httpx test-client deprecation warning remains non-blocking. |
+| Frontend production build | Passed with TypeScript and Vite. |
+| Alembic/ORM comparison | Passed; no new upgrade operations detected. No migration was needed. |
+| Application database and audit history | No application records were inserted or changed; test records were created only in the isolated `_test` database. |
+| Deployment-scale load test | Not run. The 1,000-row test checks export completeness, not the approved 50-concurrent-user response-time target; verify that target against representative deployment data before release. |
+
 ## Stage 7: Preventive Maintenance and Calibration
 
 **Status:** Approved calibration scope implemented; preventive-maintenance scheduling requires stakeholder/design approval
@@ -26,7 +50,7 @@
 - **DEC-14:** Approved material conflicts on reminder windows (30/15/7 days, 7-day UI window, 30-day workflow diagram, and configurable/API parameter). The API requires the caller to choose `within_days`; no scheduler or notifications are implemented.
 - **DEC-15:** The approved material does not define the initial due-date baseline for assets with no calibration record. Such assets are shown as having no recorded due date and are not automatically assigned one.
 - The FR-008 input list says next due date is provided by the caller, while the data dictionary marks it calculated and the scope requires automatic calculation. Implementation follows the data dictionary and category interval; the clarification is documented beside FR-008.
-- No preventive-maintenance schedules, attachments, reports, notification service, or Stage 8 work was added.
+- No preventive-maintenance schedules, attachments, or notification service was added. Stage 8 reporting is documented separately below.
 
 ### Verification
 

@@ -11,6 +11,7 @@ import FoundationPage from "../pages/FoundationPage";
 import HierarchyManagementPage from "../pages/HierarchyManagementPage";
 import LoginPage from "../pages/LoginPage";
 import MaintenancePage from "../pages/MaintenancePage";
+import ReportsPage from "../pages/ReportsPage";
 import UserManagementPage from "../pages/UserManagementPage";
 import TransferPage from "../pages/TransferPage";
 import { ProtectedRoute, PublicOnlyRoute, RoleGuard } from "./ProtectedRoute";
@@ -33,6 +34,13 @@ export default function AppRoutes() {
           <Route path="/assets/:assetId" element={<AssetDetailPage />} />
           <Route path="/maintenance" element={<MaintenancePage />} />
           <Route path="/calibrations" element={<CalibrationPage />} />
+          <Route
+            element={
+              <RoleGuard roles={["ULMD_ADMIN", "LAB_MANAGER", "AUDITOR"]} />
+            }
+          >
+            <Route path="/reports" element={<ReportsPage />} />
+          </Route>
           <Route
             element={
               <RoleGuard roles={["ULMD_ADMIN", "LAB_MANAGER", "AUDITOR"]} />

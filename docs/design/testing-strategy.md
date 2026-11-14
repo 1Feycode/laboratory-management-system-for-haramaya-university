@@ -93,3 +93,10 @@ async def client(db_session):
 - `test_unauthenticated_requests_blocked`: Accessing protected endpoints without a Bearer token returns HTTP 401.
 - `test_insufficient_role_forbidden`: A `LAB_TECH` attempting to provision a user account returns HTTP 403.
 - `test_audit_log_immutable`: Direct SQL `UPDATE` or `DELETE` executions on `audit_logs` fail at the database constraint level.
+
+### 5. Stage 8 Reporting Tests
+- `tests/test_reports.py::test_dashboard_scopes_metrics_and_calibration_status`: Checks current asset/status counts, caller-selected calibration horizon, calibration history and due counts, maintenance completion/active counts, availability's pending-definition response, and Admin/Manager/Auditor/Technician access scopes.
+- `tests/test_reports.py::test_reports_validation_empty_scope_and_inventory_csv`: Checks paired date-range validation, empty organization filters, CSV response shape, and export-role enforcement.
+- `tests/test_reports.py::test_inventory_csv_handles_large_result_set`: Checks that an inventory CSV contains all rows when exporting 1,000 additional assets from the isolated test database.
+- Inventory export tests verify status filtering and escaping of spreadsheet-formula-leading text. Report endpoints do not create or alter application records.
+- The 1,000-row completeness test is not a performance/load test. Validate large inventory exports and cross-college aggregate queries against the approved 50-concurrent-user response-time target using representative deployment-scale data; no report formula is used as a substitute for an approved uptime definition.

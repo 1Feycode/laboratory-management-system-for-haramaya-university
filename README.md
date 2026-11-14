@@ -25,8 +25,9 @@ The system bridges decentralized laboratory ownership with the centralized stand
 - [x] **Stage 5: Asset Assignment and Transfer** *(Implemented: dual approval, location history, and transfer audit events)*
 - [x] **Stage 6: Maintenance Management** *(Implemented and verified: fault reporting, dispatch, repair logs, verification, and history)*
 - [x] **Stage 7: Calibration Management** *(Calibration logs, calculated due dates, overdue tracking, and audit history implemented)*
+- [x] **Stage 8: Dashboard and Reporting** *(Scoped operational aggregates and CSV inventory export implemented; uptime/downtime metric definition remains pending approval)*
 
-> **Notice:** Stages 1–7 are implemented for the approved scope. Preventive-maintenance schedules remain unimplemented because no approved schedule/activity data model or workflow exists. Calibration reminder cadence, failed-calibration disposition, and some Stage 6 policies still need stakeholder approval. See the [implementation progress report](docs/development/implementation-progress.md).
+> **Notice:** Stages 1–8 are implemented for the approved scope. Preventive-maintenance schedules remain unimplemented because no approved schedule/activity data model or workflow exists. Uptime/downtime values remain unavailable pending an approved metric definition. Calibration reminder cadence, failed-calibration disposition, and some Stage 6 policies still need stakeholder approval. See the [implementation progress report](docs/development/implementation-progress.md).
 
 ---
 
@@ -119,6 +120,10 @@ The `/maintenance` interface supports scoped fault reporting, ULMD technician as
 
 The `/calibrations` page records approved calibration details, calculates each next due date from the asset category's default interval, and provides a due/overdue list for a caller-selected date window. Calibration history is retained and audit snapshots are append-only. Preventive-maintenance schedules and background reminders are not implemented pending an approved data model and stakeholder decisions. See the [calibration API details](docs/api/api-specification.md#5-calibration-tracking), [calibration workflow](docs/workflows/calibration-workflow.mmd), [Stage 7 decisions](docs/design/phase-2-open-decisions.md#4-stage-7-calibration-and-preventive-maintenance-boundaries), and the [implementation progress report](docs/development/implementation-progress.md).
 
+### Stage 8 Dashboard and Reporting
+
+The dashboard and reports use backend-enforced role and organizational scopes. Dashboard aggregates cover current assets, work-order status/completion, calibration compliance, and critical work orders; users choose the calibration due horizon. Authorized ULMD Administrators and Auditors can download the filtered inventory as CSV. Uptime/downtime values remain pending DEC-16 approval; preventive-maintenance counts are not shown because their approved data model is absent. See the [report API specification](docs/api/api-specification.md#6-reports-and-inventory-export), [reporting data semantics](docs/database/data-dictionary.md#8-reporting-and-aggregation-semantics), [DEC-16](docs/design/phase-2-open-decisions.md#dec-16-uptime-and-downtime-measurement), and [implementation progress](docs/development/implementation-progress.md).
+
 ### Backend Verification
 
 Run backend tests from `backend/`:
@@ -192,3 +197,4 @@ If FastAPI is later run inside Compose, configure its database host as the Compo
 - **Stage 5: Asset Assignment and Transfer** - Complete for the approved dual-authorization transfer workflow and location history.
 - **Stage 6: Maintenance Management** - Complete for the approved work-order scope; see the maintenance section of the [implementation progress report](docs/development/implementation-progress.md).
 - **Stage 7: Calibration Management** - Complete for approved calibration tracking; preventive-maintenance schedules and notifications remain pending approved requirements.
+- **Stage 8: Dashboard and Reporting** - Complete for supported operational aggregates and CSV inventory export; uptime/downtime calculation remains pending DEC-16 approval.

@@ -140,3 +140,12 @@ These outcomes record the evidence found in the approved requirements and curren
 - **Current behavior:** Assets without a recorded next due date are excluded from upcoming/overdue results and display that no due date is recorded. Asset registration does not infer a calibration deadline.
 - **Recommendation:** Define the initial calibration baseline and how legacy assets without reliable commissioning dates should be handled; decide whether they need a separate "date not recorded" review list.
 - **Approval needed:** Yes, before automatically assigning initial due dates or classifying undated assets as overdue.
+
+## 5. Stage 8 Reporting Boundary
+
+### DEC-16: Uptime and Downtime Measurement
+- **Classification:** Requires stakeholder approval; no uptime percentage or downtime duration is calculated.
+- **Evidence:** FR-010 requires uptime percentages and Phase 2 proposes downtime analytics, but the approved requirements, data dictionary, and report endpoint do not define the eligibility period, denominator, baseline for assets commissioned before system onboarding, treatment of `TRANSFER_PENDING` and `DECOMMISSIONED`, or whether all time in `DEFECTIVE` / `UNDER_MAINTENANCE` is downtime. A work order's `created_at` to `closed_at` interval is not a reliable downtime measure: an order may be rejected, reopened, awaiting parts/approval, or remain open while the asset is not continuously unavailable. Asset audit snapshots record some status changes, but their existence does not itself approve a reporting formula.
+- **Recommendation:** Approve a metric contract before exposing a percentage or duration. As one option, define a UTC reporting window; define whether the denominator is all asset-hours or only eligible commissioned asset-hours; specify treatment of every operational status, decommissioning, transfers, and assets without complete status history; and decide whether the result is fleet availability or work-order-derived downtime. Then add focused examples and acceptance thresholds to FR-010, the API specification, and the testing strategy.
+- **Current behavior:** Stage 8 returns `availability_status: PENDING_APPROVED_DEFINITION` and `null` uptime/downtime values. It reports supported work-order counts instead. No unapproved formula or downtime chart is displayed.
+- **Approval needed:** Yes, before implementing uptime percentages, downtime hours, or college comparisons of those metrics.
