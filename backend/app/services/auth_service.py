@@ -53,14 +53,12 @@ async def authenticate(
         raise _login_failed()
 
     if not user.is_active:
+        await asyncio.to_thread(verify_password, password, user.hashed_password)
         logger.warning(
             "auth.login_inactive_account",
             extra={"user_id": str(user.id)},
         )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This account is inactive",
-        )
+        raise _login_failed()
 
     now = datetime.now(timezone.utc)
     if user.locked_until is not None and user.locked_until > now:

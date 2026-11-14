@@ -1,5 +1,32 @@
 # Implementation Progress
 
+## Stage 9: Integration, Security, and Final Testing
+
+**Status:** In progress; release verification is not complete
+**Updated:** 2026-11-14
+
+### Verified
+
+- The existing PostgreSQL 15 Docker service and named persistent volume were retained. No containers, database servers, migrations, or application records were created or removed for Stage 9.
+- The application database remains at Alembic revision `20261114_07` (head); `alembic check` reports no pending schema operations. Read-only catalog inspection found 28 foreign-key, 14 primary-key, 7 unique, and 98 check constraints; `audit_logs_append_only` is enabled.
+- `/health` and `/health/ready` return HTTP 200, with the latter confirming database connectivity. The configured local frontend origin receives the expected credentialed CORS response; an unapproved origin receives no `Access-Control-Allow-Origin` header.
+- Login no longer distinguishes inactive accounts from invalid credentials: both return the generic `401 Unauthorized` response. The inactive-account path performs bcrypt verification before returning the same error. A focused regression test checks response equivalence.
+- Frontend ESLint and the production TypeScript/Vite build pass. Production dependency audit reports no vulnerabilities.
+- The integrated browser rendered the sign-in page and confirmed required-field validation. Authenticated workflows were not verified in that browser: the remote port-forwarded origin is not in the local CORS allowlist, and no institutional credentials were used. Do not expand the CORS allowlist for the temporary tunnel.
+- During the failed browser route-mock attempt, one invalid test login reached the already-running API and received `401`; it did not create or modify application database records.
+
+### Verification still in progress or unresolved
+
+| Check | Result |
+|---|---|
+| Full backend suite | Passed after the authentication fix; all 46 tests passed with one existing Starlette/httpx test-client deprecation warning. Tests use the isolated `_test` database. |
+| Full frontend audit | Seven moderate findings remain in the development-only TypeScript ESLint / `minimatch` dependency chain. `npm audit fix --force` proposes a breaking TypeScript ESLint downgrade; no forced downgrade was applied. |
+| Browser end-to-end workflows | Not complete. Verify authenticated workflows from a browser using an approved local origin and authorized test account. |
+| Multi-worker production readiness | Refresh-token revocation and rate limiting remain in-memory and do not coordinate across workers or survive process restarts. |
+| Performance/load target | No representative 50-concurrent-user load test was run. |
+
+No new business module or migration was added. Stage 9 remains incomplete until the browser and release-readiness limitations are resolved or explicitly accepted.
+
 ## Stage 8: Dashboard and Reporting
 
 **Status:** Implemented for supported approved metrics; uptime/downtime definition remains pending stakeholder approval

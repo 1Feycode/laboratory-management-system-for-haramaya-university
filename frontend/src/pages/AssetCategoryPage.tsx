@@ -1,5 +1,5 @@
 import { isAxiosError } from "axios";
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   createCategory,
@@ -48,7 +48,7 @@ export default function AssetCategoryPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  async function loadCategories() {
+  const loadCategories = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -59,11 +59,11 @@ export default function AssetCategoryPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, search]);
 
   useEffect(() => {
     void loadCategories();
-  }, [page, search]);
+  }, [loadCategories]);
 
   function beginEdit(category: AssetCategory) {
     setEditingId(category.id);

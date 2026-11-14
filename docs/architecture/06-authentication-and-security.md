@@ -155,7 +155,7 @@ app.add_middleware(
 - Passwords are hashed with bcrypt cost 12 and compared in constant time.
 - Inputs exceeding bcrypt's 72-byte UTF-8 limit are rejected rather than truncated.
 - Five consecutive failed login attempts set `users.locked_until = NOW() + 15 minutes` and reset `failed_login_attempts` on successful authentication.
-- Lockout responses are intentionally generic (`401 Unauthorized`) to avoid account enumeration.
+- Invalid credentials, inactive accounts, and locked accounts return the same generic `401 Unauthorized` response. Password verification is performed for inactive accounts to avoid a fast-path account-enumeration signal.
 
 ### 5. Rate Limiting & Abuse Controls
 - Login and refresh endpoints are rate-limited per IP and account (10 requests per 60-second window). These counters are also in process memory and reset on restart.

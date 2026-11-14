@@ -30,8 +30,7 @@ This document provides complete request and response schemas, parameters, and er
   }
   ```
 - **Error Responses:**
-  - `401 Unauthorized`: Invalid email or password.
-  - `403 Forbidden`: Account is inactive.
+  - `401 Unauthorized`: Invalid email or password, including locked or inactive accounts. The response is intentionally indistinguishable to avoid account enumeration.
 
 ---
 

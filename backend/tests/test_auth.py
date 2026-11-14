@@ -64,7 +64,7 @@ def test_invalid_credentials_and_fifth_attempt_lock_account(
     assert response.status_code == 401
 
 
-def test_login_rejects_inactive_user(client, test_engine) -> None:
+def test_login_does_not_disclose_inactive_user(client, test_engine) -> None:
     user = insert_test_user(
         test_engine,
         email="inactive@example.edu",
@@ -74,8 +74,10 @@ def test_login_rejects_inactive_user(client, test_engine) -> None:
     )
 
     response = login(client, user.email, "SecurePass123")
+    missing_user = login(client, "missing@example.edu", "SecurePass123")
 
-    assert response.status_code == 403
+    assert response.status_code == missing_user.status_code == 401
+    assert response.json() == missing_user.json()
 
 
 def test_me_requires_valid_nonexpired_access_token(client, test_engine) -> None:

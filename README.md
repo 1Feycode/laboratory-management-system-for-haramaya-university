@@ -26,8 +26,9 @@ The system bridges decentralized laboratory ownership with the centralized stand
 - [x] **Stage 6: Maintenance Management** *(Implemented and verified: fault reporting, dispatch, repair logs, verification, and history)*
 - [x] **Stage 7: Calibration Management** *(Calibration logs, calculated due dates, overdue tracking, and audit history implemented)*
 - [x] **Stage 8: Dashboard and Reporting** *(Scoped operational aggregates and CSV inventory export implemented; uptime/downtime metric definition remains pending approval)*
+- [ ] **Stage 9: Integration, Security, and Final Testing** *(Quality assurance in progress; not yet declared complete)*
 
-> **Notice:** Stages 1–8 are implemented for the approved scope. Preventive-maintenance schedules remain unimplemented because no approved schedule/activity data model or workflow exists. Uptime/downtime values remain unavailable pending an approved metric definition. Calibration reminder cadence, failed-calibration disposition, and some Stage 6 policies still need stakeholder approval. See the [implementation progress report](docs/development/implementation-progress.md).
+> **Notice:** Stages 1–8 are implemented for the approved scope; Stage 9 quality assurance is still in progress. This is not a claim that the application is release-ready. Preventive-maintenance schedules remain unimplemented because no approved schedule/activity data model or workflow exists. Uptime/downtime values remain unavailable pending an approved metric definition. Calibration reminder cadence, failed-calibration disposition, and some Stage 6 policies still need stakeholder approval. See the [implementation progress report](docs/development/implementation-progress.md).
 
 ---
 
@@ -124,6 +125,10 @@ The `/calibrations` page records approved calibration details, calculates each n
 
 The dashboard and reports use backend-enforced role and organizational scopes. Dashboard aggregates cover current assets, work-order status/completion, calibration compliance, and critical work orders; users choose the calibration due horizon. Authorized ULMD Administrators and Auditors can download the filtered inventory as CSV. Uptime/downtime values remain pending DEC-16 approval; preventive-maintenance counts are not shown because their approved data model is absent. See the [report API specification](docs/api/api-specification.md#6-reports-and-inventory-export), [reporting data semantics](docs/database/data-dictionary.md#8-reporting-and-aggregation-semantics), [DEC-16](docs/design/phase-2-open-decisions.md#dec-16-uptime-and-downtime-measurement), and [implementation progress](docs/development/implementation-progress.md).
 
+### Stage 9 Integration, Security, and Final QA
+
+**Status: In progress; release verification is not complete.** Stage 9 is limited to integration checks, security fixes, tests, and documentation; no new business module or database migration is planned. The current QA findings and remaining verification gaps are tracked in the [implementation progress report](docs/development/implementation-progress.md). The app's local CORS policy must not be widened to accommodate a temporary forwarded-browser origin. The frontend refresh-token revocation and rate-limit stores are in-memory and therefore do not provide cross-worker coordination or survive restarts.
+
 ### Backend Verification
 
 Run backend tests from `backend/`:
@@ -198,3 +203,4 @@ If FastAPI is later run inside Compose, configure its database host as the Compo
 - **Stage 6: Maintenance Management** - Complete for the approved work-order scope; see the maintenance section of the [implementation progress report](docs/development/implementation-progress.md).
 - **Stage 7: Calibration Management** - Complete for approved calibration tracking; preventive-maintenance schedules and notifications remain pending approved requirements.
 - **Stage 8: Dashboard and Reporting** - Complete for supported operational aggregates and CSV inventory export; uptime/downtime calculation remains pending DEC-16 approval.
+- **Stage 9: Integration, Security, and Final Testing** - In progress; do not treat as complete until outstanding QA findings are resolved or explicitly accepted.
