@@ -24,6 +24,7 @@ This document details the layout, data elements, user interactions, and visual s
     - *Left (Downtime Distribution):* Bar chart displaying open work orders grouped by college (HiT, CAES, CHMS, CCI, CVM, CNCS).
     - *Right (Urgent Action Queue):* Priority list of `CRITICAL` fault tickets and upcoming calibrations due within 7 days.
 - **States:** Skeleton card loading -> Interactive dashboard -> Empty state with message if no data exists.
+- **Implementation boundary:** The current `/dashboard` route is a welcome screen only; the metrics and 7-day calibration queue above remain design targets, not implemented reports. Calibration due review is available on `/calibrations` with a caller-selected date window.
 
 ---
 
@@ -53,23 +54,23 @@ This document details the layout, data elements, user interactions, and visual s
     - *Tab 1: Technical Specifications:* Manufacturer, serial number, purchase date, commissioning date, warranty expiration date.
     - *Tab 2: Location & Custody:* College, department, laboratory room, assigned custodian manager.
     - *Tab 3: Maintenance Logbook:* Chronological list of all past work orders, actions taken, spare parts used, labor hours, and servicing technicians.
-    - *Tab 4: Calibration Records:* History of certified calibration dates, standards used, and certificates.
+    - *Calibration Status:* Current due date and overdue warning; calibration history is shown on `/calibrations`.
     - *Tab 5: Custody Transfer Trail:* Historical log of all movements between laboratories.
-  - **Floating Action Bar:** Contextual actions: "Report Fault", "Initiate Transfer", "Schedule Calibration".
+  - **Contextual Actions:** "Report Fault", "Initiate Transfer", and "View Calibration Tracking" where applicable.
 
 #### Stage 4 implementation scope
 - `/assets` is available to authenticated users and provides a debounced search, college/department/laboratory/category/status filters, sorting, pagination, and a camera-based QR scanner. The delivered table shows the approved asset code, model, manufacturer, category, current location, and operational status.
 - The approved data dictionary does not define an `asset_name` field; the current UI therefore identifies equipment by model number and manufacturer. It does not invent a free-text equipment-name attribute.
 - `ULMD_ADMIN` and the designated manager of the selected laboratory can register assets. The form accepts only approved asset fields, assigns the asset code on the server, and starts the asset in `OPERATIONAL`. Editing does not expose the asset code, status, or location.
 - The passport shows the approved identity, category/calibration defaults, current college/department/laboratory/room, recorded purchase/commissioning/warranty/calibration dates, and a generated SVG QR label.
-- Maintenance and calibration history/actions remain planned for later stages. Custody transfer history and actions are implemented in Stage 5 as described below.
+- Calibration history is presented on the dedicated `/calibrations` page; the passport displays the current due date and computed overdue banner. Maintenance history/actions remain on the `/maintenance` page. Custody transfer history and actions are implemented in Stage 5 as described below.
 - QR labels contain the universal asset code while `ASSET_PUBLIC_BASE_URL` is unset. Once the deployment owner confirms the public frontend origin, this optional setting makes new QR labels link to `/assets/scan?code=...`; that protected route resolves and opens the asset passport. The camera scanner accepts both URL and code-only payloads. The QR image endpoint and lookup API remain authenticated. No production origin is currently configured.
 - Category create/update/delete endpoints and the management-page visibility are currently restricted to `ULMD_ADMIN`. This is a provisional least-privilege implementation because the approved role matrix does not define category administration; stakeholder confirmation is required. The category schema has no active/inactive field, and deletion is blocked when assets reference a category.
 
 ---
 
 ### Screen 4: Maintenance Work Orders & Dispatch Board (`/maintenance`)
-- **Target Roles:** `LAB_TECH`, `LAB_MANAGER`, `MAINTENANCE_TECH`, `ULMD_ADMIN`, `AUDITOR` (read-only).
+- **Target Roles:** `LAB_TECH`, `LAB_MANAGER`, `MAINTENANCE_TECH`, `ULMD_ADMIN`, `AUDITOR` (read-only); users in explicitly configured existing approver roles can review relevant pending requests.
 - **Layout Structure:**
   - **Report Fault Form:** Asset code, severity, failure category, and symptom description. The form resolves the code to an asset before submission. The asset passport provides a direct link that pre-fills its asset code.
   - **Work Order Queue:** Paginated cards include ticket/asset identifiers, model, manufacturer, laboratory, reporter, assigned technician, failure category, severity, description, status, status history, and repair log history. A status selector filters the queue.
@@ -80,9 +81,10 @@ This document details the layout, data elements, user interactions, and visual s
 
 #### Stage 6 implementation scope and unresolved decisions
 - `/maintenance` is the implemented route; fault reporting is embedded in the queue, not a separate `/maintenance/report` route. Ticket detail, audit-backed status history, and repair logs are shown on each queue card; there is no separate `/maintenance/:id` route.
-- The database and API support only `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `RESOLVED`, and `CLOSED`. `AWAITING_APPROVAL` is conditional on DEC-02 and remains excluded until external-parts approval criteria are confirmed.
+- The database and API support `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `AWAITING_APPROVAL`, `RESOLVED`, and `CLOSED`. The assigned Maintenance Technician can submit free-text external-parts request details from `IN_PROGRESS` or `AWAITING_PARTS`. The queue displays the requester, request details, decision, actor, time, optional notes, and audit-backed history.
+- Request and approve/reject controls are disabled when no role is configured. Approver roles come only from the optional `MAINTENANCE_APPROVER_ROLES` setting, which is empty by default; no approver role is presumed. Decision controls are shown only when the API confirms the current user is configured and is not the requester. Approval restores the previous status. Rejection remains blocked in `AWAITING_APPROVAL` while post-rejection policy awaits stakeholder confirmation.
 - A confirmed close requires the latest maintenance outcome to be `OPERATIONAL`. The policy for closing `REPAIRED_DEGRADED` or `UNREPAIRABLE` outcomes is unresolved; the UI explains that limitation and the API returns `409 Conflict` for a confirmed close.
-- There is no separate local routine-maintenance path (DEC-03), attachment upload, outbound notification, or calibration workflow in Stage 6.
+- There is no procurement, quote attachment, cost/threshold field, separate local routine-maintenance path (DEC-03), outbound notification, or calibration workflow in Stage 6.
 
 ---
 
@@ -120,3 +122,12 @@ This document details the layout, data elements, user interactions, and visual s
 - **Room Fields:** Room number and building name, scoped to a laboratory.
 - **Filters:** Departments by college, laboratories by department, and rooms by laboratory. Search fields follow the relevant entity identifiers and names.
 - **Actions and States:** Create, edit, and confirmed delete actions display success notices, validation/API errors, and loading/empty states. Database-referenced records cannot be deleted and show the API conflict message; there is no soft-delete field in the approved schema.
+
+### Screen 8: Calibration Tracking (`/calibrations`)
+- **Target Roles:** All authenticated roles may view the due list; `ULMD_ADMIN`, `MAINTENANCE_TECH`, and `AUDITOR` may view calibration history; `ULMD_ADMIN` and `MAINTENANCE_TECH` may record a calibration.
+- **Due List:** The user supplies a whole-number `within_days` horizon. A paginated table shows asset, laboratory/room, last calibration date, next due date, and computed `UPCOMING` or `OVERDUE` status. No default horizon or reminder is assumed.
+- **Record Form:** Asset code, calibration date, standard used, optional certificate reference/accreditation body, pass/fail result, and optional notes. The API calculates next due from the category's default calibration interval; certificate file upload is not supported.
+- **History:** A read-only paginated list shows calibration date, asset, technician, standard, result, and calculated next due date. There are no edit or delete actions.
+- **Passport and Inventory Indicators:** Assets with an expired calibration due date show an overdue banner on the passport and badge in the inventory list.
+- **States:** Loading, empty, API/validation error, and save confirmation states are explicit.
+- **Boundary:** Failed calibration does not automatically alter operational status or create a work order. Preventive-maintenance schedules, background jobs, reminders, and notification delivery are not implemented pending stakeholder decisions.

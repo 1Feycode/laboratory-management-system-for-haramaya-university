@@ -49,6 +49,7 @@ export interface Asset {
   warranty_expiry_date: string | null;
   last_calibrated_date: string | null;
   next_calibration_due: string | null;
+  calibration_overdue: boolean;
   qr_code_url: string;
   created_at: string;
   updated_at: string;

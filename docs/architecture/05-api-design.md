@@ -92,19 +92,23 @@ These hierarchy APIs are implemented for Stage 3. A separate `Location` entity i
 | `GET` | `/api/v1/work-orders/{order_id}` | Retrieve ticket and history | All canonical roles, scoped | Path: `order_id` | Work order with logs and status history |
 | `PUT` | `/api/v1/work-orders/{order_id}/assign` | Assign active Maintenance Technician | `ULMD_ADMIN` | `{"assigned_to": "UUID"}` | `ASSIGNED` work order |
 | `PUT` | `/api/v1/work-orders/{order_id}/status` | Start, pause for parts, or resume | Assigned `MAINTENANCE_TECH` | `{"status": "IN_PROGRESS"}` or `{"status": "AWAITING_PARTS"}` | Updated work order |
+| `POST` | `/api/v1/work-orders/{order_id}/external-parts-approval` | Submit external-parts request | Assigned `MAINTENANCE_TECH` | `{"request_details": "..."}` | `AWAITING_APPROVAL` work order |
+| `PUT` | `/api/v1/work-orders/{order_id}/external-parts-approval/decision` | Approve or reject an external-parts request | Existing roles explicitly configured in `MAINTENANCE_APPROVER_ROLES` | `decision` (`APPROVED` or `REJECTED`), optional `decision_notes` | Prior status restored on approval; rejection remains `AWAITING_APPROVAL` |
 | `POST` | `/api/v1/work-orders/{order_id}/logs` | Submit repair activity | Assigned `MAINTENANCE_TECH`, `ULMD_ADMIN` | `actions_taken`, `spare_parts_used`, `labor_hours`, `outcome_condition` | `201 Created`; work order `RESOLVED` |
 | `PUT` | `/api/v1/work-orders/{order_id}/close` | Confirm or reject repair | Custodian `LAB_MANAGER`, `ULMD_ADMIN` | `{"confirmed": true, "verification_notes": "..."}` | Closed or returned to `IN_PROGRESS` |
 
-**Stage 6 behavior:** All transitions and audit snapshots are transactional. A confirmed close requires the latest outcome to be `OPERATIONAL`; closure rules for degraded/unrepairable outcomes remain unresolved. The conditional `AWAITING_APPROVAL` state and proposed local-repair path are not implemented pending DEC-02 / DEC-03 decisions. See the [detailed API specification](../api/api-specification.md#4-maintenance--work-order-endpoints).
+**Stage 6 behavior:** All transitions and audit snapshots are transactional. `MAINTENANCE_APPROVER_ROLES` accepts existing role names only and defaults to empty; no role is enabled without an explicit environment configuration. Approval trigger, authority, evidence, approval count, and rejection disposition remain unresolved. A confirmed close requires the latest outcome to be `OPERATIONAL`; closure rules for degraded/unrepairable outcomes and the proposed local-repair path also remain unresolved. See the [detailed API specification](../api/api-specification.md#4-maintenance--work-order-endpoints) and [DEC-02](../design/phase-2-open-decisions.md#dec-02-outcome-external-parts-approval-state).
 
 ### Calibrations & Compliance
 | Method | Endpoint Path | Functionality | Permitted Roles | Request Payload | Response |
 |---|---|---|---|---|---|
-| `GET` | `/api/v1/calibrations/due` | Overdue/upcoming calibrations | Authenticated | Query: `within_days` | List of assets needing service |
-| `GET` | `/api/v1/calibrations` | Calibration history | Authenticated | Query: `asset_id`, `date_range` | Paginated calibration logs |
+| `GET` | `/api/v1/calibrations/due` | Overdue/upcoming calibrations | Authenticated | Required non-negative `within_days`, `page`, `size` | Paginated assets due by requested cutoff |
+| `GET` | `/api/v1/calibrations` | Calibration history | `ULMD_ADMIN`, `MAINTENANCE_TECH`, `AUDITOR` | Query: optional `asset_id`, `page`, `size` | Paginated calibration logs |
 | `POST` | `/api/v1/calibrations` | Log calibration certificate | `MAINTENANCE_TECH`, `ULMD_ADMIN`| `CalibrationLogCreateSchema` | `201 Created` |
 | `GET` | `/api/v1/reports/downtime` | Uptime/downtime analytics | `ULMD_ADMIN`, `AUDITOR` | Query: `college_id`, `date_range`| Analytical aggregation charts |
 | `GET` | `/api/v1/reports/inventory` | Filterable inventory export | `ULMD_ADMIN`, `AUDITOR` | Query: `college_id`, `status`, `format` | CSV/JSON inventory report |
 | `GET` | `/api/v1/reports/calibration-compliance` | Calibration compliance summary | `ULMD_ADMIN`, `AUDITOR` | Query: `college_id` | Compliance counts and overdue list |
 | `GET` | `/api/v1/audits` | Query immutable audit log | `ULMD_ADMIN`, `AUDITOR` | Query: `entity_type`, `entity_id` | Paginated audit trail |
 | `GET` | `/api/v1/audits/{id}` | Single audit record | `ULMD_ADMIN`, `AUDITOR` | Path: `id` | Audit record with JSONB snapshots |
+
+Calibration history and due endpoints are implemented in Stage 7. The history endpoint is read-only and does not accept a date range; binary certificate attachments and calibration-compliance reporting are not implemented. `within_days` is required so the caller selects the warning horizon; no default reminder window or background notification is inferred. There is no approved preventive-maintenance schedule/activity model in the ERD or data dictionary, so no such endpoints are implemented.

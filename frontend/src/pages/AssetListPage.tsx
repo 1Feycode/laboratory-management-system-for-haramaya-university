@@ -377,6 +377,11 @@ export default function AssetListPage() {
                   <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyle(asset.operational_status)}`}>
                     {asset.operational_status.replace(/_/g, " ")}
                   </span>
+                  {asset.calibration_overdue && (
+                    <span className="ml-2 rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-800">
+                      Calibration overdue
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}

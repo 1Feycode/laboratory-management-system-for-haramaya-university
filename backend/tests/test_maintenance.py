@@ -6,8 +6,9 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from app.core.config import get_settings
 from app.core.security import hash_password
-from app.models.asset import Asset
+from app.models.asset import Asset, AssetAuditLog
 from app.models.maintenance import MaintenanceLog, WorkOrder
 from app.services import maintenance_service
 from tests.conftest import insert_test_user
@@ -130,6 +131,7 @@ def _maintenance_setup(client, test_engine):
         "lab_tech_headers": lab_tech_headers,
         "technician": technician,
         "technician_headers": technician_headers,
+        "other_technician": other_technician,
         "other_technician_headers": other_technician_headers,
         "asset": asset.json(),
     }
@@ -452,3 +454,231 @@ def test_failed_repair_commit_rolls_back_order_and_log(
     assert status == "IN_PROGRESS"
     assert asset_status == "UNDER_MAINTENANCE"
     assert log_count == 0
+
+
+def test_external_parts_approval_restores_previous_status_and_audits(
+    client, test_engine, monkeypatch
+) -> None:
+    setup = _maintenance_setup(client, test_engine)
+    monkeypatch.setattr(get_settings(), "maintenance_approver_roles", "ULMD_ADMIN")
+    order = _report(client, setup).json()
+    _assign_and_start(client, setup, order)
+    request_url = (
+        f"/api/v1/work-orders/{order['id']}/external-parts-approval"
+    )
+
+    requested = client.post(
+        request_url,
+        headers=setup["technician_headers"],
+        json={"request_details": "Replacement lamp assembly required."},
+    )
+    assert requested.status_code == 200, requested.text
+    requested_order = requested.json()
+    assert requested_order["status"] == "AWAITING_APPROVAL"
+    assert requested_order["external_parts_approval"]["decision"] == "PENDING"
+    assert requested_order["external_parts_approval"]["request_details"] == (
+        "Replacement lamp assembly required."
+    )
+    assert requested_order["approval_actions_configured"] is True
+    assert requested_order["can_decide_external_parts_approval"] is False
+
+    blocked = client.post(
+        f"/api/v1/work-orders/{order['id']}/logs",
+        headers=setup["technician_headers"],
+        json={
+            "actions_taken": "Attempted repair",
+            "spare_parts_used": None,
+            "labor_hours": "0.5",
+            "outcome_condition": "OPERATIONAL",
+        },
+    )
+    assert blocked.status_code == 409
+
+    approved = client.put(
+        f"/api/v1/work-orders/{order['id']}/external-parts-approval/decision",
+        headers=setup["admin_headers"],
+        json={"decision": "APPROVED", "decision_notes": "Approved for repair."},
+    )
+    assert approved.status_code == 200, approved.text
+    approved_order = approved.json()
+    assert approved_order["status"] == "IN_PROGRESS"
+    assert approved_order["external_parts_approval"]["decision"] == "APPROVED"
+    assert approved_order["external_parts_approval"]["decider_name"] == (
+        setup["admin"].full_name
+    )
+
+    waiting = client.put(
+        f"/api/v1/work-orders/{order['id']}/status",
+        headers=setup["technician_headers"],
+        json={"status": "AWAITING_PARTS"},
+    )
+    assert waiting.status_code == 200
+    waiting_request = client.post(
+        request_url,
+        headers=setup["technician_headers"],
+        json={"request_details": "External pump assembly is required."},
+    )
+    assert waiting_request.status_code == 200, waiting_request.text
+    second_approval = client.put(
+        f"/api/v1/work-orders/{order['id']}/external-parts-approval/decision",
+        headers=setup["admin_headers"],
+        json={"decision": "APPROVED", "decision_notes": None},
+    )
+    assert second_approval.status_code == 200, second_approval.text
+    assert second_approval.json()["status"] == "AWAITING_PARTS"
+    assert second_approval.json()["external_parts_approval"]["previous_status"] == (
+        "AWAITING_PARTS"
+    )
+
+    async def read_approval_audit():
+        factory = async_sessionmaker(test_engine, expire_on_commit=False)
+        async with factory() as session:
+            return list(
+                (
+                    await session.scalars(
+                        select(AssetAuditLog)
+                        .where(
+                            AssetAuditLog.entity_type == "work_orders",
+                            AssetAuditLog.entity_id == order["id"],
+                            AssetAuditLog.action.in_(
+                                [
+                                    "EXTERNAL_PARTS_APPROVAL_REQUESTED",
+                                    "EXTERNAL_PARTS_APPROVAL_APPROVED",
+                                ]
+                            ),
+                        )
+                        .order_by(AssetAuditLog.created_at, AssetAuditLog.id)
+                    )
+                ).all()
+            )
+
+    audit = asyncio.run(read_approval_audit())
+    assert [entry.action for entry in audit] == [
+        "EXTERNAL_PARTS_APPROVAL_REQUESTED",
+        "EXTERNAL_PARTS_APPROVAL_APPROVED",
+        "EXTERNAL_PARTS_APPROVAL_REQUESTED",
+        "EXTERNAL_PARTS_APPROVAL_APPROVED",
+    ]
+    assert audit[0].new_values["external_parts_request_details"] == (
+        "Replacement lamp assembly required."
+    )
+    assert approved_order["status_history"][-1]["action"] == (
+        "EXTERNAL_PARTS_APPROVAL_APPROVED"
+    )
+
+
+def test_external_parts_approval_authorization_and_self_approval(
+    client, test_engine, monkeypatch
+) -> None:
+    setup = _maintenance_setup(client, test_engine)
+    monkeypatch.setattr(
+        get_settings(), "maintenance_approver_roles", "MAINTENANCE_TECH"
+    )
+    order = _report(client, setup).json()
+    _assign_and_start(client, setup, order)
+    unauthorized_request = client.post(
+        f"/api/v1/work-orders/{order['id']}/external-parts-approval",
+        headers=setup["other_technician_headers"],
+        json={"request_details": "Replacement power supply required."},
+    )
+    assert unauthorized_request.status_code == 403
+    requested = client.post(
+        f"/api/v1/work-orders/{order['id']}/external-parts-approval",
+        headers=setup["technician_headers"],
+        json={"request_details": "Replacement power supply required."},
+    )
+    assert requested.status_code == 200
+
+    decision_url = (
+        f"/api/v1/work-orders/{order['id']}/external-parts-approval/decision"
+    )
+    self_approval = client.put(
+        decision_url,
+        headers=setup["technician_headers"],
+        json={"decision": "APPROVED"},
+    )
+    assert self_approval.status_code == 403
+
+    unauthorized = client.put(
+        decision_url,
+        headers=setup["manager_headers"],
+        json={"decision": "APPROVED"},
+    )
+    assert unauthorized.status_code == 403
+
+    approved = client.put(
+        decision_url,
+        headers=setup["other_technician_headers"],
+        json={"decision": "APPROVED"},
+    )
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["external_parts_approval"]["decider_name"] == (
+        setup["other_technician"].full_name
+    )
+
+
+def test_external_parts_rejection_is_audited_and_keeps_order_blocked(
+    client, test_engine, monkeypatch
+) -> None:
+    setup = _maintenance_setup(client, test_engine)
+    monkeypatch.setattr(get_settings(), "maintenance_approver_roles", "ULMD_ADMIN")
+    order = _report(client, setup).json()
+    _assign_and_start(client, setup, order)
+    requested = client.post(
+        f"/api/v1/work-orders/{order['id']}/external-parts-approval",
+        headers=setup["technician_headers"],
+        json={"request_details": "Replacement circuit board required."},
+    )
+    assert requested.status_code == 200
+
+    rejected = client.put(
+        f"/api/v1/work-orders/{order['id']}/external-parts-approval/decision",
+        headers=setup["admin_headers"],
+        json={"decision": "REJECTED", "decision_notes": "Request declined."},
+    )
+    assert rejected.status_code == 200, rejected.text
+    rejected_order = rejected.json()
+    assert rejected_order["status"] == "AWAITING_APPROVAL"
+    assert rejected_order["external_parts_approval"]["decision"] == "REJECTED"
+    assert rejected_order["external_parts_approval"]["decision_notes"] == (
+        "Request declined."
+    )
+    assert rejected_order["status_history"][-1]["action"] == (
+        "EXTERNAL_PARTS_APPROVAL_REJECTED"
+    )
+    assert rejected_order["status_history"][-1]["notes"] == "Request declined."
+
+    cannot_resume = client.put(
+        f"/api/v1/work-orders/{order['id']}/status",
+        headers=setup["technician_headers"],
+        json={"status": "IN_PROGRESS"},
+    )
+    assert cannot_resume.status_code == 409
+
+
+def test_external_parts_decisions_disabled_without_configured_roles(
+    client, test_engine, monkeypatch
+) -> None:
+    setup = _maintenance_setup(client, test_engine)
+    monkeypatch.setattr(get_settings(), "maintenance_approver_roles", "")
+    order = _report(client, setup).json()
+    _assign_and_start(client, setup, order)
+    requested = client.post(
+        f"/api/v1/work-orders/{order['id']}/external-parts-approval",
+        headers=setup["technician_headers"],
+        json={"request_details": "Replacement sensor required."},
+    )
+    assert requested.status_code == 503
+    unchanged = client.get(
+        f"/api/v1/work-orders/{order['id']}",
+        headers=setup["technician_headers"],
+    )
+    assert unchanged.status_code == 200
+    assert unchanged.json()["status"] == "IN_PROGRESS"
+
+    decision = client.put(
+        f"/api/v1/work-orders/{order['id']}/external-parts-approval/decision",
+        headers=setup["admin_headers"],
+        json={"decision": "APPROVED"},
+    )
+    assert decision.status_code == 503

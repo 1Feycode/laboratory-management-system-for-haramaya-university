@@ -66,7 +66,7 @@ To ensure that historical asset data and audit records cannot be compromised:
 To ensure sub-200ms query performance on standard 8 GB RAM hardware:
 - `idx_assets_code`: Unique B-Tree index on `assets.asset_code` for rapid QR lookups.
 - `idx_assets_status`: B-Tree index on `assets.operational_status` for fast inventory filtering.
-- `idx_assets_next_cal`: Index on `assets.next_calibration_due` for daily overdue batch evaluations.
+- `idx_assets_next_cal`: Index on `assets.next_calibration_due` for computed due/overdue queries.
 - `idx_audit_entity`: Composite index on `audit_logs(entity_type, entity_id)` for lightning-fast asset history retrieval.
 
 ---
@@ -81,4 +81,6 @@ Stage 4 adds the approved `asset_categories`, `assets`, and `audit_logs` tables 
 
 Stage 5 adds `asset_transfers` using the approved data-dictionary fields only. Its restrictive foreign keys preserve the asset, origin/destination laboratories, origin/destination rooms, and actors. The asset continues to reference its origin location while status is `TRANSFER_PENDING`; ULMD completion updates its current laboratory and room while the transfer row preserves the previous location. The existing immutable audit table stores each state transition and corresponding asset status/location snapshot in the same transaction. No `asset_assignments` or shared-location table is introduced. The Stage 5 Alembic revision is additive and follows the existing migration history.
 
-Stage 6 adds only `work_orders` and `maintenance_logs`, with restrictive asset/user/work-order foreign keys, approved check constraints, and ticket/status/asset/assignee indexes. Work-order state and asset-condition changes, maintenance log rows, and JSONB audit snapshots are committed atomically. No separate maintenance assignment/activity/outcome tables were added; current assignee and repair history use the approved work-order fields and append-only logs. `AWAITING_APPROVAL` remains a proposed DEC-02 state and is excluded from the Stage 6 status constraint until its approval policy is confirmed.
+Stage 6 adds only `work_orders` and `maintenance_logs`, with restrictive asset/user/work-order foreign keys, approved check constraints, and ticket/status/asset/assignee indexes. The additive `20261114_06` revision extends `work_orders` with external-parts request and decision fields and allows `AWAITING_APPROVAL`; it does not alter earlier migrations or existing rows. The row stores the latest request, while each request and decision is retained in append-only JSONB audit snapshots. Approval restores the saved prior status; rejection remains in `AWAITING_APPROVAL` pending stakeholder disposition. No quote, cost, procurement, budget, or purchase-order schema was added.
+
+Stage 7 adds the ERD-approved `calibration_logs` table through a new additive migration after `20261114_06`. It preserves each calibration event and restricts deletion of referenced assets/users. No preventive-maintenance schedule or activity entity is added because none exists in the approved ERD/data dictionary. No prior revision or application record is rewritten.

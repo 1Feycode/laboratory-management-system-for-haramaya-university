@@ -24,8 +24,9 @@ The system bridges decentralized laboratory ownership with the centralized stand
 - [x] **Stage 4: Asset Management** *(Implemented and verified: asset register, categories, QR lookup, and audit history)*
 - [x] **Stage 5: Asset Assignment and Transfer** *(Implemented: dual approval, location history, and transfer audit events)*
 - [x] **Stage 6: Maintenance Management** *(Implemented and verified: fault reporting, dispatch, repair logs, verification, and history)*
+- [x] **Stage 7: Calibration Management** *(Calibration logs, calculated due dates, overdue tracking, and audit history implemented)*
 
-> **Notice:** Stages 1–6 are implemented. Calibration workflows and business reporting are not implemented. See the [implementation progress report](docs/development/implementation-progress.md).
+> **Notice:** Stages 1–7 are implemented for the approved scope. Preventive-maintenance schedules remain unimplemented because no approved schedule/activity data model or workflow exists. Calibration reminder cadence, failed-calibration disposition, and some Stage 6 policies still need stakeholder approval. See the [implementation progress report](docs/development/implementation-progress.md).
 
 ---
 
@@ -79,7 +80,7 @@ The backend runs directly on Windows and connects to the PostgreSQL container th
    ```powershell
    .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
    ```
-   The migrations create the approved identity, organizational hierarchy, asset category, asset, transfer, maintenance, and append-only audit tables, and the initial migration seeds the five approved roles. The interactive CLI provisions the first `ULMD_ADMIN`; no default account or password is created.
+   The migrations create the approved identity, organizational hierarchy, asset category, asset, transfer, maintenance, calibration, and append-only audit tables, and the initial migration seeds the five approved roles. The interactive CLI provisions the first `ULMD_ADMIN`; no default account or password is created.
    API documentation is available at `http://127.0.0.1:8000/docs`; liveness is at `/health` and database connectivity at `/health/ready`.
 5. In another terminal, if `frontend/.env.local` does not already exist, copy `frontend/.env.example` to it; preserve any existing local settings. Then start React:
    ```powershell
@@ -112,7 +113,11 @@ Initial assignment remains part of asset registration and is captured in its cre
 
 ### Stage 6 Maintenance Management
 
-The `/maintenance` interface supports scoped fault reporting, ULMD technician assignment, repair activity and parts/labor records, custodian verification, and audit-backed history. The conditional `AWAITING_APPROVAL` state and closure of degraded/unrepairable outcomes remain unresolved and are not enabled without stakeholder decisions. See [maintenance API details](docs/api/api-specification.md#4-maintenance--work-order-endpoints), [open maintenance decisions](docs/design/phase-2-open-decisions.md#3-stage-6-maintenance-decision-boundaries), and the [implementation progress report](docs/development/implementation-progress.md).
+The `/maintenance` interface supports scoped fault reporting, ULMD technician assignment, repair activity and parts/labor records, custodian verification, audit-backed history, and the DEC-02 external-parts request/decision workflow. `MAINTENANCE_APPROVER_ROLES` is empty by default and must contain stakeholder-authorized existing roles before approval actions are enabled. Approval restores the prior work-order status; rejection remains blocked in `AWAITING_APPROVAL` until its disposition is confirmed. No procurement or spending subsystem was added. See [maintenance API details](docs/api/api-specification.md#4-maintenance--work-order-endpoints), [open maintenance decisions](docs/design/phase-2-open-decisions.md#3-stage-6-maintenance-decision-boundaries), and the [implementation progress report](docs/development/implementation-progress.md).
+
+### Stage 7 Calibration Management
+
+The `/calibrations` page records approved calibration details, calculates each next due date from the asset category's default interval, and provides a due/overdue list for a caller-selected date window. Calibration history is retained and audit snapshots are append-only. Preventive-maintenance schedules and background reminders are not implemented pending an approved data model and stakeholder decisions. See the [calibration API details](docs/api/api-specification.md#5-calibration-tracking), [calibration workflow](docs/workflows/calibration-workflow.mmd), [Stage 7 decisions](docs/design/phase-2-open-decisions.md#4-stage-7-calibration-and-preventive-maintenance-boundaries), and the [implementation progress report](docs/development/implementation-progress.md).
 
 ### Backend Verification
 
@@ -186,4 +191,4 @@ If FastAPI is later run inside Compose, configure its database host as the Compo
 - **Stage 4: Asset Management** - Complete for asset registration, categories, QR lookup, search, and asset audit snapshots.
 - **Stage 5: Asset Assignment and Transfer** - Complete for the approved dual-authorization transfer workflow and location history.
 - **Stage 6: Maintenance Management** - Complete for the approved work-order scope; see the maintenance section of the [implementation progress report](docs/development/implementation-progress.md).
-- **Calibration and later business modules** - Not implemented; do not infer those workflows are available from the asset register or transfer module.
+- **Stage 7: Calibration Management** - Complete for approved calibration tracking; preventive-maintenance schedules and notifications remain pending approved requirements.

@@ -1,18 +1,22 @@
 flowchart TD
-    ScheduleCheck[Daily System Schedule Evaluator] --> QueryDue[Query assets Table where<br/>next_calibration_due <= NOW + 30 Days]
-    
-    QueryDue --> FlagCheck{next_calibration_due < NOW?}
-    FlagCheck -- Yes --> SetOverdue[Display Red Banner:<br/>CALIBRATION_OVERDUE]
-    FlagCheck -- No --> SetWarning[Display Amber Warning:<br/>Calibration Due in X Days]
-    
-    SetOverdue & SetWarning --> NotifyTech[Alert Maintenance Engineer & Lab Manager]
-    NotifyTech --> CalibSession[Technician Performs Certified Calibration<br/>Using Traceable Standard Reference]
-    
-    CalibSession --> SubmitLog[Log Calibration Details:<br/>Standard Used, Certificate Ref, Date,<br/>Pass/Fail Flag, Next Due Date]
-    SubmitLog --> PassCheck{Did Instrument Pass?}
-    
-    PassCheck -- Failed --> LockDefective[Asset Condition: DEFECTIVE<br/>Auto-Open Urgent Work Order]
-    
-    PassCheck -- Passed --> UpdateAsset[Update asset.last_calibrated_date<br/>Update asset.next_calibration_due<br/>Clear Overdue Warning Flag]
-    UpdateAsset --> LogAudit[(Write to audit_logs Table<br/>Action: CALIBRATION_LOGGED)]
-    LogAudit --> Finish([Calibration Compliance Verified])
+    User[Authenticated user selects due window]
+    User --> Query[GET calibrations due with required within_days]
+    Query --> DueCheck{next_calibration_due before today?}
+    DueCheck -->|Yes| Overdue[Return OVERDUE status and passport warning]
+    DueCheck -->|No, within requested window| Upcoming[Return UPCOMING status]
+    DueCheck -->|Outside requested window| Omit[Do not include in due response]
+
+    Technician[ULMD_ADMIN or MAINTENANCE_TECH] --> SelectAsset[Select asset and enter calibration details]
+    SelectAsset --> Validate{Category requires calibration and has positive interval?}
+    Validate -->|No| Reject[Reject request with conflict]
+    Validate -->|Yes| Calculate[Calculate next_due_date from calibration date plus category interval]
+    Calculate --> Save[Append calibration_logs record]
+    Save --> Passed{Calibration passed?}
+    Passed -->|Yes| UpdatePass[Update asset last_calibrated_date and next_calibration_due]
+    Passed -->|No| UpdateFail[Update last_calibrated_date only; retain prior asset due date]
+    UpdatePass --> Audit[Append calibration and asset snapshots to audit_logs in same transaction]
+    UpdateFail --> Audit
+    Audit --> History[Retain record in calibration history]
+
+    %% Reminder window is supplied by the caller. No scheduler or notification is implemented.
+    %% Failed-calibration asset disposition requires stakeholder approval (DEC-13).

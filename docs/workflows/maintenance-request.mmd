@@ -11,10 +11,26 @@ flowchart TD
     Maintenance --> Ticket
     Ticket --> Assign[ULMD_ADMIN assigns active MAINTENANCE_TECH]
     Assign --> Start[Assigned technician starts work; status IN_PROGRESS]
-    Start --> Parts{Waiting for parts?}
+    Start --> PartsApprovalNeeded{External-parts approval requested?}
+    PartsApprovalNeeded -- Yes --> RequestDetails[Enter free-text external-parts request details]
+    PartsApprovalNeeded -- No --> Parts{Waiting for parts?}
     Parts -- Yes --> Waiting[Set AWAITING_PARTS]
-    Waiting --> Resume[Parts available; resume IN_PROGRESS]
-    Resume --> Repair[Diagnose and repair instrument]
+    Waiting --> PartsRequest{Assigned technician requests external-parts approval?}
+    PartsRequest -- No --> Resume[Parts available; resume IN_PROGRESS]
+    PartsRequest -- Yes --> RequestDetails
+    RequestDetails --> AwaitApproval[Set AWAITING_APPROVAL; preserve previous status and asset condition]
+    AwaitApproval --> RequestAudit[Append immutable request audit snapshot]
+    RequestAudit --> ApprovalRoles{Authorized existing role configured?}
+    ApprovalRoles -- No --> Disabled[Decision endpoint disabled; request remains blocked]
+    ApprovalRoles -- Yes --> Decision{Configured approver decides}
+    Decision -- Approve --> ApprovalAudit[Append immutable approval decision snapshot]
+    ApprovalAudit --> Restore[Restore saved previous status]
+    Restore --> PriorState{Previous status}
+    PriorState -- IN_PROGRESS --> Repair[Diagnose and repair instrument]
+    PriorState -- AWAITING_PARTS --> Waiting
+    Decision -- Reject --> RejectionAudit[Append immutable rejection decision snapshot]
+    RejectionAudit --> Rejected[Record rejection; remain AWAITING_APPROVAL]
+    Rejected --> RejectionPolicy[Post-rejection disposition awaits stakeholder decision]
     Parts -- No --> Repair
     Repair --> Log[Record actions, parts, labor, and approved outcome]
     Log --> Outcome{Outcome condition}
@@ -31,5 +47,3 @@ flowchart TD
     Closed --> Audit[Append immutable work-order and asset audit snapshots]
     Audit --> Done([Maintenance history retained])
     RejectReport --> End([No work order created])
-
-    %% AWAITING_APPROVAL for external-parts procurement remains excluded pending DEC-02 approval.

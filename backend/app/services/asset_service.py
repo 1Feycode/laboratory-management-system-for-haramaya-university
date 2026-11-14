@@ -98,6 +98,11 @@ def _asset_read(asset: Asset) -> AssetRead:
         warranty_expiry_date=asset.warranty_expiry_date,
         last_calibrated_date=asset.last_calibrated_date,
         next_calibration_due=asset.next_calibration_due,
+        calibration_overdue=(
+            asset.category.requires_calibration
+            and asset.next_calibration_due is not None
+            and asset.next_calibration_due < datetime.now(timezone.utc).date()
+        ),
         qr_code_url=asset.qr_code_path or f"/api/v1/assets/{asset.id}/qr",
         created_at=asset.created_at,
         updated_at=asset.updated_at,

@@ -10,6 +10,7 @@ WorkOrderStatus = Literal[
     "ASSIGNED",
     "IN_PROGRESS",
     "AWAITING_PARTS",
+    "AWAITING_APPROVAL",
     "RESOLVED",
     "CLOSED",
 ]
@@ -18,6 +19,8 @@ FailureCategory = Literal[
     "ELECTRICAL", "MECHANICAL", "OPTICAL", "SOFTWARE", "CONSUMABLE", "OTHER"
 ]
 MaintenanceOutcome = Literal["OPERATIONAL", "REPAIRED_DEGRADED", "UNREPAIRABLE"]
+ExternalPartsApprovalDecision = Literal["PENDING", "APPROVED", "REJECTED"]
+ExternalPartsPreviousStatus = Literal["IN_PROGRESS", "AWAITING_PARTS"]
 T = TypeVar("T")
 
 
@@ -70,6 +73,15 @@ class MaintenanceVerification(CleanMaintenanceText):
     verification_notes: Annotated[str, Field(min_length=1)]
 
 
+class ExternalPartsApprovalRequest(CleanMaintenanceText):
+    request_details: Annotated[str, Field(min_length=1)]
+
+
+class ExternalPartsApprovalDecisionUpdate(CleanMaintenanceText):
+    decision: Literal["APPROVED", "REJECTED"]
+    decision_notes: str | None = None
+
+
 class MaintenanceLogRead(BaseModel):
     id: UUID
     work_order_id: UUID
@@ -91,7 +103,22 @@ class WorkOrderStatusEvent(BaseModel):
     old_assignee_id: UUID | None
     new_assignee_id: UUID | None
     notes: str | None
+    external_parts_request_details: str | None = None
+    external_parts_decision: ExternalPartsApprovalDecision | None = None
     occurred_at: datetime
+
+
+class ExternalPartsApprovalRead(BaseModel):
+    request_details: str
+    requested_by: UUID
+    requester_name: str
+    requested_at: datetime
+    previous_status: ExternalPartsPreviousStatus
+    decision: ExternalPartsApprovalDecision
+    decided_by: UUID | None
+    decider_name: str | None
+    decided_at: datetime | None
+    decision_notes: str | None
 
 
 class WorkOrderRead(BaseModel):
@@ -117,5 +144,8 @@ class WorkOrderRead(BaseModel):
     created_at: datetime
     resolved_at: datetime | None
     closed_at: datetime | None
+    external_parts_approval: ExternalPartsApprovalRead | None = None
+    approval_actions_configured: bool
+    can_decide_external_parts_approval: bool
     maintenance_logs: list[MaintenanceLogRead] = Field(default_factory=list)
     status_history: list[WorkOrderStatusEvent] = Field(default_factory=list)

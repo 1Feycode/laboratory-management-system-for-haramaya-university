@@ -8,6 +8,8 @@ from app.api.deps import get_current_user, require_roles
 from app.db.session import get_db_session
 from app.models.user import User
 from app.schemas.maintenance import (
+    ExternalPartsApprovalDecisionUpdate,
+    ExternalPartsApprovalRequest,
     FaultReportCreate,
     MaintenanceLogCreate,
     MaintenancePage,
@@ -111,6 +113,38 @@ async def change_work_order_status(
     user: User = Depends(require_roles("MAINTENANCE_TECH")),
 ):
     return await maintenance_service.update_work_order_status(
+        session, order_id, payload, user, _client_ip(request)
+    )
+
+
+@router.post(
+    "/{order_id}/external-parts-approval",
+    response_model=WorkOrderRead,
+)
+async def request_external_parts_approval(
+    order_id: uuid.UUID,
+    payload: ExternalPartsApprovalRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+):
+    return await maintenance_service.request_external_parts_approval(
+        session, order_id, payload, user, _client_ip(request)
+    )
+
+
+@router.put(
+    "/{order_id}/external-parts-approval/decision",
+    response_model=WorkOrderRead,
+)
+async def decide_external_parts_approval(
+    order_id: uuid.UUID,
+    payload: ExternalPartsApprovalDecisionUpdate,
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+):
+    return await maintenance_service.decide_external_parts_approval(
         session, order_id, payload, user, _client_ip(request)
     )
 

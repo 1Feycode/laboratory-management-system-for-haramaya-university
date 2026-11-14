@@ -17,6 +17,7 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://hu_lab_app:local-dev-only@127.0.0.1:5432/"
         "hu_lab_management"
     )
+    maintenance_approver_roles: str = ""
     asset_public_base_url: AnyHttpUrl | None = None
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     sql_echo: bool = False
@@ -43,6 +44,24 @@ class Settings(BaseSettings):
         if "*" in origins:
             raise ValueError("Wildcard CORS origins are not allowed with credentialed requests")
         return value
+
+    @field_validator("maintenance_approver_roles")
+    @classmethod
+    def validate_maintenance_approver_roles(cls, value: str) -> str:
+        allowed_roles = {
+            "ULMD_ADMIN",
+            "MAINTENANCE_TECH",
+            "LAB_MANAGER",
+            "LAB_TECH",
+            "AUDITOR",
+        }
+        roles = {role.strip().upper() for role in value.split(",") if role.strip()}
+        invalid_roles = roles - allowed_roles
+        if invalid_roles:
+            raise ValueError(
+                "MAINTENANCE_APPROVER_ROLES may contain only existing application roles"
+            )
+        return ",".join(sorted(roles))
 
     @field_validator("asset_public_base_url")
     @classmethod
@@ -74,6 +93,14 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def maintenance_approval_role_names(self) -> set[str]:
+        return (
+            set(self.maintenance_approver_roles.split(","))
+            if self.maintenance_approver_roles
+            else set()
+        )
 
 
 @lru_cache

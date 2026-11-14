@@ -1,22 +1,61 @@
 # Implementation Progress
 
+## Stage 7: Preventive Maintenance and Calibration
+
+**Status:** Approved calibration scope implemented; preventive-maintenance scheduling requires stakeholder/design approval
+**Completed:** 2026-11-14
+
+### Part A: Preventive maintenance
+
+- **Not implemented.** The approved ERD and data dictionary define no preventive-maintenance schedule/activity entity, and no approved frequency, recurrence, task, assignment, or completion workflow was found. The project scope places proactive alerts in Release 2, and the stakeholder interview question about existing schedules remains unanswered.
+- No schedule models, migrations, APIs, screens, background jobs, reminders, or generated work orders were added. DEC-12 records the information needed for approval.
+
+### Part B: Calibration
+
+- Added the approved `CalibrationLog` SQLAlchemy model and additive migration `20261114_07_calibrations` after `20261114_06`. The migration creates only `calibration_logs` with restrictive asset/user foreign keys and its approved indexes; previous revisions and application rows were not modified.
+- Added Pydantic schemas, a service-layer implementation, and `GET /api/v1/calibrations`, `GET /api/v1/calibrations/due`, and `POST /api/v1/calibrations`. Calibration writes are restricted to `ULMD_ADMIN` and `MAINTENANCE_TECH`; all authenticated roles may see due status, while history reads are limited to `ULMD_ADMIN`, `MAINTENANCE_TECH`, and `AUDITOR`.
+- The server calculates each log's `next_due_date` from calibration date plus the category's `default_calibration_interval_days`. Categories must require calibration and have a positive interval. Due/overdue status is computed on demand from required caller-supplied `within_days`; no reminder window is hardcoded.
+- Successful calibrations update the asset's last/next calibration dates. Failed results are retained and update the last calibration date, but preserve the previous asset due date and do not automatically change operational status or create work orders pending stakeholder approval (DEC-13).
+- Calibration history is retained through read-only API access; each calibration insert and corresponding asset-date mutation writes append-only audit snapshots in the same transaction. The asset passport and inventory expose computed overdue indicators.
+- Added the `/calibrations` React page with due-window selection, paginated due and history tables, role-aware record form, validation/loading/success states, and no certificate file upload. Updated API, database, security, UI/UX, workflow, traceability, README, and decision documentation.
+
+### Stage 7 decisions and boundaries
+
+- **DEC-12:** No approved preventive-maintenance schedule/activity design exists; stakeholder approval and synchronized requirements/ERD/data-dictionary/API/UI updates are needed before implementation.
+- **DEC-13:** Failed-calibration asset status and work-order disposition remain unresolved. No automatic defective transition or work order is implemented.
+- **DEC-14:** Approved material conflicts on reminder windows (30/15/7 days, 7-day UI window, 30-day workflow diagram, and configurable/API parameter). The API requires the caller to choose `within_days`; no scheduler or notifications are implemented.
+- **DEC-15:** The approved material does not define the initial due-date baseline for assets with no calibration record. Such assets are shown as having no recorded due date and are not automatically assigned one.
+- The FR-008 input list says next due date is provided by the caller, while the data dictionary marks it calculated and the scope requires automatic calculation. Implementation follows the data dictionary and category interval; the clarification is documented beside FR-008.
+- No preventive-maintenance schedules, attachments, reports, notification service, or Stage 8 work was added.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| Calibration-focused backend tests | Passed; 2 tests cover due-date calculation, failed-result preservation, overdue status, history retention, audit snapshots, role enforcement, invalid assets/categories, and read-only API behavior. |
+| Full backend suite | Passed; 43 tests across Stages 1–7. The existing Starlette/httpx test-client deprecation warning remains non-blocking. |
+| Frontend production build | Passed with TypeScript and Vite. |
+| Alembic migration / ORM comparison | Passed; `20261114_07` is current and `alembic check` reports no pending schema operations. |
+| Existing PostgreSQL data and audit protection | Preserved; before/after counts remain assets 1, users 7, laboratories 3, audit rows 12; the new calibration table contains 0 application records. The `audit_logs_append_only` trigger remains enabled. |
+
 ## Stage 6: Maintenance Management
 
-**Status:** Implemented and verified
+**Status:** Implemented and verified, with DEC-02 policy decisions pending
 **Completed:** 2026-11-14
 
 ### Delivered
 
-- Added the approved `WorkOrder` and `MaintenanceLog` SQLAlchemy models and additive Alembic revision `20261114_05_maintenance`, following `20261113_04`. The revision adds only `work_orders` and `maintenance_logs`; prior migrations and existing data are unchanged.
-- Added validated maintenance request/response schemas, service-layer workflows, and authenticated endpoints for fault reports, scoped paginated work-order reads, ULMD technician assignment, assigned-technician status transitions, repair activities, and custodian verification/rejection.
+- Added the approved `WorkOrder` and `MaintenanceLog` SQLAlchemy models and additive Alembic revision `20261114_05_maintenance`, following `20261113_04`. The additive DEC-02 revision `20261114_06` extends `work_orders` with external-parts request/decision fields and `AWAITING_APPROVAL`; no earlier migration was modified.
+- Added validated maintenance request/response schemas, service-layer workflows, and authenticated endpoints for fault reports, scoped paginated work-order reads, ULMD technician assignment, assigned-technician status transitions, repair activities, custodian verification/rejection, and external-parts approval requests and decisions.
 - Fault reporting locks an `OPERATIONAL` asset as `DEFECTIVE` for critical severity or `UNDER_MAINTENANCE` for other approved severities. Ticket creation, asset status updates, logs, state changes, and append-only JSONB audit snapshots are transactional.
-- Enforced the role matrix in the API: Lab Technicians are department-scoped, Lab Managers are scoped to their managed laboratories, Maintenance Technicians can act on assigned orders, and ULMD Admin / Auditors have university-wide read access. Only active `MAINTENANCE_TECH` users can be assigned.
-- Added the React `/maintenance` queue, fault report form, status filter and pagination, role-aware assignment and work controls, repair log form, verification/rejection, and audit-backed status and maintenance history. Operational asset passports provide a prefilled fault-report link.
+- Enforced the role matrix in the API: Lab Technicians are department-scoped, Lab Managers are scoped to their managed laboratories, Maintenance Technicians can act on assigned orders, and ULMD Admin / Auditors have university-wide read access. Only active `MAINTENANCE_TECH` users can be assigned. Approval roles can be selected only from the existing role set and default to none; self-approval is rejected.
+- External-parts requests are limited to the assigned technician and are disabled unless an existing approver role is explicitly configured. Requests store free-text details, the saved prior status, requester, and timestamp. Approval restores that status; rejection is audited and keeps the work order blocked in `AWAITING_APPROVAL` until stakeholder disposition is defined. Requests and decisions append immutable audit snapshots in the same transaction, preserving prior requests.
+- Added the React `/maintenance` queue, fault report form, status filter and pagination, role-aware assignment and work controls, repair log form, verification/rejection, external-parts request and decision controls, and audit-backed status and maintenance history. Operational asset passports provide a prefilled fault-report link.
 - No extra maintenance assignment/activity/outcome tables, local-repair path, calibration, or unrelated modules were introduced.
 
 ### Unresolved requirements and boundaries
 
-- **DEC-02:** `AWAITING_APPROVAL` remains a proposed state. External-parts thresholds, approver, evidence, and rejection behavior are unspecified; the state and budget approval process are not implemented.
+- **DEC-02:** The technical workflow is implemented, but stakeholders must still define the trigger/threshold/currency, authorized existing approver role(s), approval count, required evidence, and rejection/cancellation disposition. `MAINTENANCE_APPROVER_ROLES` remains empty until authorization is confirmed. No procurement or spending workflow is implemented.
 - The approved outcomes include `REPAIRED_DEGRADED` and `UNREPAIRABLE`, but do not define safe degraded return-to-service authorization or unrepairable disposition. The API permits recording these outcomes but only permits confirmed closure for `OPERATIONAL`; otherwise it returns `409 Conflict`. Stakeholder approval is required before changing this behavior.
 - **DEC-03:** The proposed Lab Manager local routine-repair workflow is not implemented.
 - No notifications, procurement flow, or calibration features were added.
@@ -25,15 +64,13 @@
 
 | Check | Result |
 |---|---|
-| Maintenance-focused API tests | Passed; 5 tests cover fault scope/validation, severity lock, duplicate active report, assignment-role validation, unauthorized technician actions, parts pause/resume, repair and verification history, outcome boundary, and transaction rollback. |
-| Full backend suite | Passed; 37 tests across Stages 1–6. The existing Starlette/httpx test-client deprecation warning remains non-blocking. |
+| Maintenance-focused API tests | Passed; 9 tests cover request/decision authorization, self-approval prevention, both prior-state restorations, rejection blocking, decision-disabled configuration, audit history, fault scope/validation, and transaction rollback. |
+| Full backend suite | Passed; 41 tests across Stages 1–6. The existing Starlette/httpx test-client deprecation warning remains non-blocking. |
 | Frontend production build | Passed with TypeScript and Vite. |
-| Backend compilation, app import, and OpenAPI paths | Passed; all six work-order paths are registered. |
-| Alembic graph and migration | Passed; `20261114_05` applied as the sole head after `20261113_04`. |
-| Generated migration SQL and model comparison | Passed; SQL creates only the approved tables/constraints/indexes; `alembic check` reports no pending schema operations. |
-| Audit append-only protection | Passed; `audit_logs_append_only` remains enabled after migration. The maintenance migration does not alter audit triggers. |
-| Existing PostgreSQL data | Preserved; migration ran against `hu_lab_management` without reset or deletion. A post-migration count found one work order and zero maintenance logs; no work-order records were inserted by these tests or migration. The observed row was left untouched. All automated tests used the separate `_test` database. |
-| Frontend ESLint command | Still blocked by pre-existing setup: ESLint 10.14.0 has no `eslint.config.*` file in the frontend project. The production TypeScript/Vite build passes; no lint configuration or unrelated dependencies were added in this stage. |
+| Alembic migration and ORM comparison | Passed; `20261114_06` is applied after `20261114_05`; `alembic check` reports no pending schema operations. Earlier revisions remain unchanged. |
+| Audit append-only protection | Passed; the existing `audit_logs_append_only` trigger remains enabled after migration. Request and decision snapshots are written using the existing protected table. |
+| Existing PostgreSQL data | Preserved; the additive migration ran against the existing `hu_lab_management` database without reset or deletion. The existing work-order count remained one; no work-order records were inserted by the migration. All automated tests used the separate `_test` database. |
+| Python lint | Not run; Ruff is not installed in the existing virtual environment, and no dependency was added. |
 
 ## Stage 5: Asset Assignment and Transfer
 
@@ -92,7 +129,7 @@
 - **Location exception:** BR-004 requires one current room and laboratory, while the possible shared-instrument note defines no exception workflow or persisted authorization. Existing parent validation remains; no multi-location relationship or bypass was added. Stakeholder approval is required before any exception.
 - **Migration/data preservation:** no Alembic revision was needed for these decision outcomes. No application-database records or existing migration history were changed.
 - **Audit user foreign key:** `audit_logs.user_id ON DELETE SET NULL` would require changing an audit row, which the append-only trigger blocks. Current user management deactivates accounts and exposes no physical deletion. Production DB role hardening is still required because a database owner/superuser can disable triggers.
-- At Stage 4 completion, only asset and category mutations were recorded in the audit slice. Stage 5 subsequently added transfer and asset status/location events; Stage 6 adds maintenance events. Authentication/user and calibration audit events, plus general audit browsing, remain unimplemented.
+- At Stage 4 completion, only asset and category mutations were recorded in the audit slice. Stage 5 subsequently added transfer and asset status/location events; Stage 6 adds maintenance events. Authentication/user audit events and general audit browsing remain unimplemented; calibration audit events were added in Stage 7.
 
 ### Verification
 

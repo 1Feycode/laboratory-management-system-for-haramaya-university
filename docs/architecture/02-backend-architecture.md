@@ -41,7 +41,7 @@ backend/
 │   │       ├── assets.py         # Asset CRUD, QR generation, lookup
 │   │       ├── transfers.py      # Inter-department transfer workflow
 │   │       ├── maintenance.py    # Fault tickets, work orders, repair logs
-│   │       ├── calibrations.py   # Calibration logs and schedules
+│   │       ├── calibrations.py   # Calibration history and due views
 │   │       ├── reports.py        # Dashboards and compliance exports
 │   │       └── audits.py         # Read-only audit log queries
 │   ├── core/                     # Application Infrastructure
@@ -76,11 +76,9 @@ backend/
 │   │   ├── asset_service.py      # Asset code formatting, QR payload generation
 │   │   ├── transfer_service.py   # Multi-step state machine validation
 │   │   ├── maintenance_service.py# Work order routing to Tech Unit
-│   │   ├── calibration_service.py# Overdue calculations and updates
+│   │   ├── calibration_service.py# Calibration records and computed due status
 │   │   ├── report_service.py     # Dashboard aggregations and inventory exports
 │   │   └── audit_service.py      # Immutable logging helper
-│   ├── tasks/                    # Scheduled / background jobs
-│   │   └── calibration_scheduler.py # Daily due/overdue evaluation
 │   └── main.py                   # FastAPI initialization, middleware, routes
 ├── alembic/                      # Database Migration Scripts
 │   ├── versions/
@@ -113,8 +111,8 @@ backend/
 - **`AuthService`:** Verifies bcrypt hashes, increments failed-login counters, applies the 15-minute lockout after five failures, and issues access/refresh tokens.
 - **`AssetService`:** Validates serial number uniqueness, generates formatted `asset_code`, and constructs vector QR payloads.
 - **`TransferService`:** Enforces dual-authorization rules, locks asset condition during transfer, preserves origin/destination room history, and reassigns location foreign keys upon ULMD approval.
-- **`MaintenanceService`:** Manages the implemented work order lifecycle (`OPEN` -> `ASSIGNED` -> `IN_PROGRESS` -> `RESOLVED` -> `CLOSED`), supports the approved `AWAITING_PARTS` pause, updates asset condition flags, and records labor hours, spare parts, custodian verification, and immutable audit snapshots. `AWAITING_APPROVAL` is excluded pending DEC-02 stakeholder confirmation.
-- **`CalibrationService`:** Calculates due/overdue status, records certificates and accreditation body, and updates asset calibration dates.
+- **`MaintenanceService`:** Manages the work-order lifecycle (`OPEN` -> `ASSIGNED` -> `IN_PROGRESS` -> `RESOLVED` -> `CLOSED`), the `AWAITING_PARTS` pause, and the explicit DEC-02 external-parts approval request/decision flow. It updates asset condition flags, records labor hours, spare parts, custodian verification, and same-transaction immutable audit snapshots. Approver roles are configurable only from existing roles and are disabled by default; trigger, authorization, evidence, and rejection policies remain for stakeholder confirmation.
+- **`CalibrationService`:** Calculates due/overdue status from caller-supplied query windows, records certificate references and accreditation bodies, calculates next due dates from category intervals, and updates asset calibration dates.
 - **`AuditService`:** Writes synchronous append-only audit records with before/after JSONB snapshots.
 
 ### 3. `app/schemas/` (Pydantic Serialization)
@@ -126,10 +124,8 @@ backend/
 - The audit record is written **inside the same transaction** as the business mutation so that a failed audit insert rolls back the mutation. This preserves the invariant that every committed state change has a corresponding audit record.
 - Read-only report queries use a separate session/transaction and never write audit records.
 
-### 5. Scheduled Calibration Evaluation
-- A lightweight scheduler runs inside the FastAPI lifespan (or as a Windows Task Scheduler job in production) once per day.
-- It queries assets with `next_calibration_due <= current_date + warning_window_days`, computes `CALIBRATION_OVERDUE` / due-soon flags, and refreshes cached dashboard counts.
-- The scheduler is idempotent and does not create duplicate work orders; failed calibrations may open an urgent work order through `MaintenanceService`.
+### 5. Calibration Due Evaluation
+Due and overdue status is computed on demand. The required `within_days` query parameter sets the result horizon; a due date before the current UTC date is overdue. No scheduled task, notification, cached counter, or automatic work-order creation is implemented.
 
 ## 6. Stage 4 Asset Implementation
 
@@ -143,4 +139,8 @@ The `transfers` API delegates to `transfer_service`, which locks the asset and t
 
 ## 8. Stage 6 Maintenance Implementation
 
-The `work-orders` API delegates to `maintenance_service`. It creates fault reports only for operational assets, locks critical assets as `DEFECTIVE` and other reported assets as `UNDER_MAINTENANCE`, assigns active Maintenance Technicians, enforces department/laboratory/assigned-ticket read scope, and records maintenance logs and status snapshots transactionally. The additive `20261114_05_maintenance` revision creates only the approved `work_orders` and `maintenance_logs` tables. `AWAITING_APPROVAL` and the proposed DEC-03 local-repair path are not implemented. Confirmation of degraded/unrepairable closure behavior remains outstanding; only `OPERATIONAL` outcomes can currently close an order.
+The `work-orders` API delegates to `maintenance_service`. It creates fault reports only for operational assets, locks critical assets as `DEFECTIVE` and other reported assets as `UNDER_MAINTENANCE`, assigns active Maintenance Technicians, enforces department/laboratory/assigned-ticket read scope, and records maintenance logs and status snapshots transactionally. The additive `20261114_05_maintenance` and `20261114_06` revisions create the maintenance tables and DEC-02 request/decision columns without altering previous migration history. Explicitly configured approvers can decide requests; approval restores the prior state, while rejection stays blocked in `AWAITING_APPROVAL`. The proposed DEC-03 local-repair path is not implemented. Confirmation of approver roles, request triggers, rejection disposition, and degraded/unrepairable closure behavior remains outstanding; only `OPERATIONAL` outcomes can currently close an order.
+
+## 9. Stage 7 Calibration Implementation
+
+The `/calibrations` API delegates to `calibration_service` and persists the approved `CalibrationLog` fields. `next_due_date` is calculated from the calibration date and the category's default interval. A successful record updates the asset's dates; a failed record preserves its prior due date and does not change operational status or create a work order pending stakeholder policy. Calibration and asset audit snapshots are committed atomically. The additive `20261114_07` migration follows `20261114_06`; no preventive-maintenance schedule/activity model or background scheduler is introduced.

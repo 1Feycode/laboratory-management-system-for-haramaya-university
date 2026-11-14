@@ -45,7 +45,7 @@ This document maps the user navigation flow, route hierarchy, and role-based men
 | **QR Passport Entry** | `/assets/scan?code=...` | Protected | Protected | Protected | Protected | Protected |
 | **Register New Asset**| `/assets/register` | Visible | Hidden | Visible | Hidden | Hidden |
 | **Maintenance Hub & Submit Fault** | `/maintenance` | Queue, report, assign, log, verify | Assigned queue, status, log | Own-lab queue, report, verify | Department queue, report | Read-only |
-| **Calibration Log** | `/calibrations` | Full Access | Record Entry| View Due | View Due | Read-Only |
+| **Calibration Log** | `/calibrations` | Record / full history | Record / full history | View Due | View Due | Read-only history / due |
 | **Custody Transfers** | `/transfers` | Final Approval| Hidden | Initiate/Accept| Hidden | Read-Only |
 | **Reports & Analytics**| `/reports` | Full Access | Hidden | Dept Scoped | Hidden | Full Access |
 | **Audit Ledger** | `/reports/audits` | Visible | Hidden | Hidden | Hidden | Visible |
@@ -59,7 +59,9 @@ The Stage 4 asset list and passport are available to all authenticated roles. Re
 
 Stage 5 implements `/transfers` for `ULMD_ADMIN`, `LAB_MANAGER`, and read-only `AUDITOR`. Lab Managers see only transfers involving laboratories they currently manage. Initiation, destination acceptance/rejection, and ULMD approval controls are displayed by role and transfer status; the API independently checks the actor's current designated-laboratory relationship.
 
-Stage 6 implements one `/maintenance` page. Fault reporting is embedded in the page and can also be opened from an operational asset passport with the asset code pre-filled. The API scopes Lab Managers to their managed laboratories, Lab Technicians to their department, and Maintenance Technicians to assigned orders. ULMD Admin and Auditors have university-wide read access; assignment, technician activity, and verification actions are independently authorized by the API. There are no separate report or ticket-detail routes.
+Stage 6 implements one `/maintenance` page. Fault reporting is embedded in the page and can also be opened from an operational asset passport with the asset code pre-filled. The API scopes Lab Managers to their managed laboratories, Lab Technicians to their department, and Maintenance Technicians to assigned orders. Users in explicitly configured existing approver roles can additionally see relevant external-parts approval requests; ULMD Admin and Auditors retain university-wide read access. Assignment, technician activity, approval decisions, and verification actions are independently authorized by the API. There are no separate report or ticket-detail routes.
+
+Stage 7 implements `/calibrations` for due/overdue review and calibration history. All authenticated roles can view due information; ULMD Admin, Maintenance Technicians, and Auditors can view history; ULMD Admin and Maintenance Technicians can record a calibration. The user must supply the due-window horizon. No scheduled reminder or preventive-maintenance schedule page is implemented because that workflow is not defined in the approved schema.
 
 ---
 

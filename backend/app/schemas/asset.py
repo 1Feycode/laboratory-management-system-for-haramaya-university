@@ -121,6 +121,7 @@ class AssetRead(BaseModel):
     warranty_expiry_date: date | None
     last_calibrated_date: date | None
     next_calibration_due: date | None
+    calibration_overdue: bool
     qr_code_url: str
     created_at: datetime
     updated_at: datetime

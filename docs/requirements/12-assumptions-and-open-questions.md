@@ -27,6 +27,7 @@ This document captures the working assumptions adopted during Phase 1 analysis a
 - **Question:** Does the ULMD Director or Department Head need to approve maintenance requests before a technician is dispatched, or is dispatching automatic based on severity?
 - **Impact on System Design:** Determines whether the work order state machine requires an explicit `AWAITING_APPROVAL` state before transitioning to `ASSIGNED`.
 - **Proposed Baseline:** `CRITICAL` and `HIGH` severity tickets immediately notify the Technology Unit for rapid dispatch; tickets requiring external replacement parts exceeding a financial threshold require administrative sign-off.
+- **Implementation clarification:** The DEC-02 request/decision mechanism is implemented, but this proposed threshold and sign-off role are not treated as an approved institutional policy. The technical flow requires an explicit request by the assigned technician, supports only free-text details, has no default approver roles, and leaves rejection blocked pending stakeholder direction. See [DEC-02 implementation outcome](../design/phase-2-open-decisions.md#dec-02-outcome-external-parts-approval-state).
 
 ### Open Question 3: Institutional Single Sign-On (SSO) Integration
 - **Question:** Does Haramaya University operate a centralized LDAP or Microsoft Active Directory / Google Workspace identity provider that can be leveraged for user authentication?

@@ -5,6 +5,7 @@ import AssetDetailPage from "../pages/AssetDetailPage";
 import AssetFormPage from "../pages/AssetFormPage";
 import AssetListPage from "../pages/AssetListPage";
 import AssetQrRedirectPage from "../pages/AssetQrRedirectPage";
+import CalibrationPage from "../pages/CalibrationPage";
 import DashboardPage from "../pages/DashboardPage";
 import FoundationPage from "../pages/FoundationPage";
 import HierarchyManagementPage from "../pages/HierarchyManagementPage";
@@ -31,6 +32,7 @@ export default function AppRoutes() {
           <Route path="/assets/scan" element={<AssetQrRedirectPage />} />
           <Route path="/assets/:assetId" element={<AssetDetailPage />} />
           <Route path="/maintenance" element={<MaintenancePage />} />
+          <Route path="/calibrations" element={<CalibrationPage />} />
           <Route
             element={
               <RoleGuard roles={["ULMD_ADMIN", "LAB_MANAGER", "AUDITOR"]} />

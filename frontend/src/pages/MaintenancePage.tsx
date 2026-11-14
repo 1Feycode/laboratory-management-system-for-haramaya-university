@@ -7,7 +7,9 @@ import {
   addMaintenanceLog,
   assignWorkOrder,
   createWorkOrder,
+  decideExternalPartsApproval,
   listWorkOrders,
+  requestExternalPartsApproval,
   updateWorkOrderStatus,
   verifyWorkOrder,
   type FailureCategory,
@@ -89,6 +91,8 @@ function WorkOrderCard({
   onStatus,
   onAddLog,
   onVerify,
+  onRequestParts,
+  onDecidePartsApproval,
 }: {
   order: WorkOrder;
   role: string | undefined;
@@ -111,6 +115,12 @@ function WorkOrderCard({
     confirmed: boolean,
     notes: string,
   ) => Promise<boolean>;
+  onRequestParts: (order: WorkOrder, details: string) => Promise<boolean>;
+  onDecidePartsApproval: (
+    order: WorkOrder,
+    decision: "APPROVED" | "REJECTED",
+    notes: string,
+  ) => Promise<boolean>;
 }) {
   const [technicianId, setTechnicianId] = useState("");
   const [actionsTaken, setActionsTaken] = useState("");
@@ -118,6 +128,8 @@ function WorkOrderCard({
   const [laborHours, setLaborHours] = useState("0");
   const [outcome, setOutcome] = useState<MaintenanceOutcome>("OPERATIONAL");
   const [verificationNotes, setVerificationNotes] = useState("");
+  const [externalPartsDetails, setExternalPartsDetails] = useState("");
+  const [approvalNotes, setApprovalNotes] = useState("");
 
   const latestOutcome =
     order.maintenance_logs[order.maintenance_logs.length - 1]
@@ -135,6 +147,12 @@ function WorkOrderCard({
   const canVerify =
     (role === "LAB_MANAGER" || role === "ULMD_ADMIN") &&
     order.status === "RESOLVED";
+  const canRequestPartsApproval =
+    role === "MAINTENANCE_TECH" &&
+    order.assigned_to === userId &&
+    order.approval_actions_configured &&
+    (order.status === "IN_PROGRESS" || order.status === "AWAITING_PARTS");
+  const approval = order.external_parts_approval;
 
   async function handleLogSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -149,6 +167,14 @@ function WorkOrderCard({
     setPartsUsed("");
     setLaborHours("0");
     setOutcome("OPERATIONAL");
+  }
+
+  async function handleExternalPartsRequest(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    const saved = await onRequestParts(order, externalPartsDetails.trim());
+    if (saved) setExternalPartsDetails("");
   }
 
   return (
@@ -281,6 +307,145 @@ function WorkOrderCard({
             </button>
           )}
         </div>
+      )}
+
+      {role === "MAINTENANCE_TECH" &&
+        order.assigned_to === userId &&
+        !order.approval_actions_configured &&
+        (order.status === "IN_PROGRESS" || order.status === "AWAITING_PARTS") && (
+          <p className="mt-4 rounded bg-amber-50 p-3 text-sm text-amber-900">
+            External-parts approval requests are disabled until stakeholders
+            designate authorized existing application roles.
+          </p>
+        )}
+
+      {canRequestPartsApproval && (
+        <form
+          className="mt-4 rounded bg-slate-50 p-4"
+          onSubmit={(event) => void handleExternalPartsRequest(event)}
+        >
+          <label className="block text-sm font-medium text-slate-700">
+            External-parts request details
+            <textarea
+              required
+              minLength={1}
+              value={externalPartsDetails}
+              onChange={(event) => setExternalPartsDetails(event.target.value)}
+              rows={3}
+              className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
+              placeholder="Describe the external parts needed and the reason for the request."
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={busy || !externalPartsDetails.trim()}
+            className="mt-3 rounded bg-university-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          >
+            Request external-parts approval
+          </button>
+        </form>
+      )}
+
+      {approval && (
+        <section className="mt-4 rounded border border-slate-200 bg-slate-50 p-4">
+          <h3 className="font-semibold text-slate-900">
+            External-parts approval · {approval.decision}
+          </h3>
+          <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <dt className="text-xs uppercase text-slate-500">Request details</dt>
+              <dd className="mt-1 whitespace-pre-wrap text-slate-800">
+                {approval.request_details}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase text-slate-500">Requested by</dt>
+              <dd className="mt-1 text-slate-800">
+                {approval.requester_name} ·{" "}
+                {new Date(approval.requested_at).toLocaleString()}
+              </dd>
+            </div>
+            {approval.decided_at && (
+              <div>
+                <dt className="text-xs uppercase text-slate-500">Decision by</dt>
+                <dd className="mt-1 text-slate-800">
+                  {approval.decider_name || "Former user"} ·{" "}
+                  {new Date(approval.decided_at).toLocaleString()}
+                </dd>
+              </div>
+            )}
+            {approval.decision_notes && (
+              <div className="sm:col-span-2">
+                <dt className="text-xs uppercase text-slate-500">Decision notes</dt>
+                <dd className="mt-1 whitespace-pre-wrap text-slate-800">
+                  {approval.decision_notes}
+                </dd>
+              </div>
+            )}
+          </dl>
+          {approval.decision === "PENDING" &&
+            order.status === "AWAITING_APPROVAL" &&
+            (order.can_decide_external_parts_approval ? (
+              <form className="mt-4 border-t border-slate-200 pt-4">
+                <label className="block text-sm font-medium text-slate-700">
+                  Decision notes (optional)
+                  <textarea
+                    value={approvalNotes}
+                    onChange={(event) => setApprovalNotes(event.target.value)}
+                    rows={2}
+                    className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
+                  />
+                </label>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={async () => {
+                      const decided = await onDecidePartsApproval(
+                        order,
+                        "APPROVED",
+                        approvalNotes.trim(),
+                      );
+                      if (decided) setApprovalNotes("");
+                    }}
+                    className="rounded bg-green-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  >
+                    Approve request
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={async () => {
+                      const decided = await onDecidePartsApproval(
+                        order,
+                        "REJECTED",
+                        approvalNotes.trim(),
+                      );
+                      if (decided) setApprovalNotes("");
+                    }}
+                    className="rounded border border-red-400 px-3 py-2 text-sm text-red-800 disabled:opacity-50"
+                  >
+                    Reject request
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <p className="mt-3 text-sm text-amber-800">
+                {order.approval_actions_configured
+                  ? approval.requested_by === userId
+                    ? "The requester cannot approve or reject their own request."
+                    : "Your role is not configured to decide this request."
+                  : "Approval actions are disabled until stakeholders designate authorized existing application roles."}
+              </p>
+            ))}
+          {approval.decision === "REJECTED" && (
+            <p className="mt-3 text-sm text-amber-800">
+              The request is rejected and the work order remains blocked in
+              AWAITING APPROVAL. Its post-rejection disposition requires
+              stakeholder approval.
+            </p>
+          )}
+        </section>
       )}
 
       {canRecordLog && (
@@ -445,8 +610,12 @@ function WorkOrderCard({
       <ol className="mt-4 space-y-1 border-l-2 border-slate-200 pl-4 text-xs text-slate-500">
         {order.status_history.map((event, index) => (
           <li key={`${event.action}-${event.occurred_at}-${index}`}>
+            {event.action.replace(/_/g, " ")} ·{" "}
             {formatStatus(event.new_status)} · {event.actor_name || "Former user"} ·{" "}
             {new Date(event.occurred_at).toLocaleString()}
+            {event.notes && (
+              <span className="block whitespace-pre-wrap">{event.notes}</span>
+            )}
           </li>
         ))}
       </ol>
@@ -714,6 +883,7 @@ export default function MaintenancePage() {
                 "ASSIGNED",
                 "IN_PROGRESS",
                 "AWAITING_PARTS",
+                "AWAITING_APPROVAL",
                 "RESOLVED",
                 "CLOSED",
               ] as WorkOrderStatus[]
@@ -761,6 +931,24 @@ export default function MaintenancePage() {
               }
               onVerify={(record, confirmed, notes) =>
                 handleVerify(record, confirmed, notes)
+              }
+              onRequestParts={(record, details) =>
+                performAction(
+                  record,
+                  () => requestExternalPartsApproval(record.id, details),
+                  `External-parts approval requested for ${record.ticket_number}.`,
+                )
+              }
+              onDecidePartsApproval={(record, decision, notes) =>
+                performAction(
+                  record,
+                  () =>
+                    decideExternalPartsApproval(record.id, {
+                      decision,
+                      decision_notes: notes || null,
+                    }),
+                  `${record.ticket_number} external-parts request ${decision.toLowerCase()}.`,
+                )
               }
             />
           ))}

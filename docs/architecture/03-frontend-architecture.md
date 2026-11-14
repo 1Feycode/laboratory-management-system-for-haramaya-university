@@ -54,7 +54,7 @@ frontend/
 │   │   │   └── AssetRegistrationPage.tsx
 │   │   ├── transfers/TransferWorkflowPage.tsx
 │   │   ├── MaintenancePage.tsx   # Fault report, role-scoped queue, work and verification
-│   │   ├── calibrations/CalibrationSchedulePage.tsx
+│   │   ├── CalibrationPage.tsx   # Due status, calibration entry, and history
 │   │   ├── reports/
 │   │   │   ├── ReportsDashboardPage.tsx
 │   │   │   └── AuditLogPage.tsx
@@ -73,7 +73,7 @@ frontend/
 │   │   ├── assetService.ts
 │   │   ├── maintenanceService.ts
 │   │   ├── transferService.ts
-│   │   ├── calibrationService.ts
+│   │   ├── calibrations.ts
 │   │   ├── reportService.ts
 │   │   ├── auditService.ts
 │   │   ├── userService.ts
@@ -108,6 +108,8 @@ Bench-side technicians and managers require rapid equipment identification witho
   1. *Loading State:* Pulse skeleton loaders matching table dimensions.
   2. *Empty State:* Descriptive illustration with contextual call-to-action ("No assets registered in this laboratory yet").
   3. *Success / Data State:* Clean, high-contrast data tables with sorting and pagination controls.
+
+The Stage 7 `/calibrations` page uses caller-selected due windows, role-aware calibration entry, and read-only paginated history. The asset list and passport display computed overdue indicators; no scheduled reminders or preventive-maintenance schedule UI are implemented without an approved workflow.
   4. *Error State:* User-friendly error banner with an immediate "Retry Request" button.
 - **Visual Status Badges:** Color-coded condition indicators:
   - `OPERATIONAL`: Green (`bg-emerald-100 text-emerald-800`)

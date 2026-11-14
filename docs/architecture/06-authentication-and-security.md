@@ -73,6 +73,8 @@ sequenceDiagram
 | **Submit Maintenance & Repair Log** | Yes | Yes | No | No | No |
 | **Verify Repair & Close Ticket** | Yes | No | Yes (own lab) | No | No |
 | **Record Certified Calibration** | Yes | Yes | No | No | No |
+| **View Calibration Due Status** | Yes | Yes | Yes | Yes | Yes |
+| **View Calibration History** | Yes | Yes | No | No | Yes |
 | **View Scoped Operational Analytics** | Yes | No | Yes (own lab) | No | Yes |
 | **View Immutable Audit Trail** | Yes | No | No | No | Yes |
 
@@ -88,11 +90,21 @@ Transfer creation is restricted to `ULMD_ADMIN` and the designated manager of th
 
 - Fault reports are limited to `LAB_TECH` accounts in the asset department, the designated manager of the asset laboratory, and `ULMD_ADMIN`.
 - `ULMD_ADMIN` assigns only active `MAINTENANCE_TECH` accounts. A Maintenance Technician can read and transition only orders assigned to that account.
+- Only the assigned `MAINTENANCE_TECH` can request external-parts approval, from `IN_PROGRESS` or `AWAITING_PARTS`.
+- Request and decision actions are controlled by the optional `MAINTENANCE_APPROVER_ROLES` environment setting. It accepts only the existing application roles and defaults to empty; no role is enabled by default. With no configured roles, both endpoints return `503` and no request is created. When configured, each listed role may record a decision and may read relevant approval requests. The requester cannot approve or reject their own request. This mechanism does not establish which role the University authorizes or whether its policy requires additional approvals.
+- A request or decision is committed with its audit snapshot in one transaction. Each request and decision appends a row to the existing append-only `audit_logs`; previous requests remain in audit history when the work-order row is reused for a later request. Approval restores the pre-request status. Rejection stays in `AWAITING_APPROVAL`, with the work order blocked pending stakeholder disposition.
 - The assigned Maintenance Technician and `ULMD_ADMIN` may submit a maintenance activity for an in-progress order; the log records the assigned technician as the servicing technician.
 - Repair verification is limited to the designated Lab Manager for that laboratory or `ULMD_ADMIN`. The backend checks this scope independently of the React action controls.
 - `AUDITOR` has read-only university-wide access. Lab Managers are limited to laboratories they manage; Lab Technicians are limited to their department.
 - Work-order, asset-status, maintenance-log, and audit-snapshot changes are committed in the same PostgreSQL transaction. Audit rows continue to use the append-only `audit_logs` table and its existing database protection.
-- `AWAITING_APPROVAL` and the degraded/unrepairable closure policy are not implemented because the corresponding approval and disposition rules remain unresolved.
+- The `AWAITING_APPROVAL` technical workflow is implemented, but trigger thresholds, authorized approver roles, supporting evidence, and rejection/cancellation disposition remain unresolved. No spending threshold, procurement process, approver title, or approval count is assumed. The degraded/unrepairable closure policy also remains unresolved.
+
+### Stage 7 calibration authorization and history
+
+- `ULMD_ADMIN` and `MAINTENANCE_TECH` may record a calibration. The API independently enforces this policy.
+- All authenticated roles may view the computed due/overdue list. `ULMD_ADMIN`, `MAINTENANCE_TECH`, and `AUDITOR` may view calibration history; Lab Managers and Lab Technicians do not receive unrestricted history access.
+- Each calibration record and asset-date update is committed with append-only audit snapshots in the same transaction. The calibration API exposes no update/delete operation, and restrictive foreign keys preserve referenced records.
+- `within_days` is required on the due-list query. No background scheduler, notifications, failed-calibration status transition, or work-order creation is implemented pending policy clarification.
 
 ---
 

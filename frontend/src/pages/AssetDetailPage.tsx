@@ -144,6 +144,28 @@ export default function AssetDetailPage() {
         </div>
       </div>
 
+      {asset.requires_calibration && (
+        <div
+          role="status"
+          className={`mt-4 rounded-lg p-4 text-sm ${
+            asset.calibration_overdue
+              ? "bg-red-50 text-red-800"
+              : asset.next_calibration_due
+                ? "bg-green-50 text-green-800"
+                : "bg-amber-50 text-amber-800"
+          }`}
+        >
+          {asset.calibration_overdue
+            ? `Calibration overdue. Next due date was ${displayDate(asset.next_calibration_due)}.`
+            : asset.next_calibration_due
+              ? `Calibration due date: ${displayDate(asset.next_calibration_due)}.`
+              : "No calibration due date has been recorded."}
+          <Link className="ml-2 font-medium underline" to="/calibrations">
+            View calibration tracking
+          </Link>
+        </div>
+      )}
+
       <div className="mt-7 grid gap-6 lg:grid-cols-[1fr_260px]">
         <div className="space-y-6">
           <section className="rounded-xl border border-slate-200 bg-white p-5">

@@ -96,11 +96,13 @@ These outcomes record the evidence found in the approved requirements and curren
 ## 3. Stage 6 Maintenance Decision Boundaries
 
 ### DEC-02 Outcome: External-Parts Approval State
-- **Classification:** Requires stakeholder approval; no approval state is implemented.
-- **Evidence:** FR-007 describes `AWAITING_APPROVAL` as optional, and DEC-02 proposes it when external spare-parts procurement incurs budget expenditure. The approved materials do not state a monetary threshold, whether all external parts require approval, what documentation is required, who may approve in place of or in addition to the ULMD Directorate, or how rejection/cancellation affects the work order and asset.
-- **Current implementation:** The additive Stage 6 schema and API allow `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `RESOLVED`, and `CLOSED`. A technician may pause and resume for parts, but there is no spending approval endpoint or `AWAITING_APPROVAL` state. No budget or procurement subsystem was added.
-- **Recommendation for approval:** Confirm (1) the exact event that requires approval, (2) any monetary threshold and currency, (3) the authorized approver(s), (4) required quote/reference and audit evidence, (5) approve/reject transitions and rejection notes, and (6) how the asset status behaves while approval is pending. Only after approval should the work-order check constraint, transition API, audit snapshots, UI actions, and migration be extended.
-- **Approval needed:** Yes before adding an approval status or gate.
+- **Classification:** The technical approval workflow is implemented; the university policy that determines when it is required, who is authorized, and what rejection means still requires stakeholder approval.
+- **Evidence:** FR-007 describes `AWAITING_APPROVAL` as optional, and DEC-02 proposes approval for external spare-parts expenditure. The approved materials do not state a monetary threshold or currency, whether a particular class of external parts always requires approval, an authoritative approver role, required evidence beyond request details, or the work-order disposition after rejection. The proposed ULMD Directorate sign-off is not treated as an approved role assignment.
+- **Implemented technical behavior:** An assigned `MAINTENANCE_TECH` can explicitly submit free-text external-parts request details while the order is `IN_PROGRESS` or `AWAITING_PARTS`. The work order enters `AWAITING_APPROVAL`; its existing asset condition is unchanged. An additive migration adds nullable request/decision fields and extends the status constraint without changing prior migrations or existing rows. Request and decision snapshots are appended to the existing protected `audit_logs` table in the same transaction. No quote, cost, procurement, budget, or purchase-order fields or subsystem were added.
+- **Approver configuration:** `MAINTENANCE_APPROVER_ROLES` accepts only existing application role names and defaults to empty. With the default, request and decision actions are disabled and the respective endpoints return `503`, preventing a request from being trapped without a configured decision-maker. Once stakeholders designate one or more existing roles, any eligible user in a configured role may record one decision; the requester cannot decide their own request. This is a technical configuration mechanism, not a finding that any particular role or single-approver policy is institutionally authorized. Configured approvers can see pending approval items in the queue.
+- **Decision transitions:** Approval records the actor, time, and optional notes and restores the work order to the state it had before the request (`IN_PROGRESS` or `AWAITING_PARTS`). Rejection is recorded with its actor, time, and optional notes but leaves the order in `AWAITING_APPROVAL`; the order remains blocked, and no retry, return-to-work, cancellation, asset disposition, or procurement action is inferred. Every request and decision remains represented in immutable audit history even when the work-order row holds a later request.
+- **Recommendation for approval:** Confirm (1) what triggers mandatory approval, including any threshold and currency, (2) which existing role or roles are authorized and whether one or multiple approvals are required, (3) required supporting evidence, and (4) the approved disposition and asset condition after rejection or cancellation. Configure `MAINTENANCE_APPROVER_ROLES` only after that authorization is confirmed.
+- **Approval needed:** Yes, for the operational trigger, authorized approver(s), approval count, evidence, and rejection/cancellation disposition. The configurable state machine can be exercised only after an authorized role is configured.
 
 ### DEC-11: Closure of Degraded or Unrepairable Outcomes
 - **Classification:** Requires stakeholder approval; no disposition behavior is inferred.
@@ -108,3 +110,33 @@ These outcomes record the evidence found in the approved requirements and curren
 - **Current implementation:** A repair log may record all three approved outcomes. Confirmed closure is accepted only when the latest outcome is `OPERATIONAL`; a confirmed close for either other outcome returns `409 Conflict`. The asset remains in its maintenance/defective state. The custodian may reject the repair back to `IN_PROGRESS`; no decommissioning or asset-status bypass is available.
 - **Recommendation for approval:** Define separate decisions for degraded and unrepairable outcomes: permitted operating conditions and approving role for degraded equipment; and the required condemnation evidence, authorization, and lifecycle transition for unrepairable equipment. Align the approved asset state machine, audit fields, API, and screen actions before implementing the policy.
 - **Approval needed:** Yes before supporting confirmed closure for non-operational outcomes or decommissioning from maintenance.
+
+## 4. Stage 7 Calibration and Preventive-Maintenance Boundaries
+
+### DEC-12: Preventive-Maintenance Schedule and Activity Design
+- **Classification:** Requires requirements/design approval; no preventive-maintenance schema or workflow is implemented.
+- **Evidence:** The approved ERD and data dictionary contain calibration records and reactive work orders, but no preventive-maintenance schedule/activity entity. The scope places proactive alerts in Release 2, while stakeholder interview question 4 asks whether standardized preventive-maintenance schedules exist and has no recorded answer. No approved recurrence rules, task checklist, duration, responsible role, or completion/exception workflow is defined.
+- **Recommendation:** Before implementation, stakeholders should approve whether schedules are asset-level or category-level, the allowed frequency representation and due-date rules, responsible roles, activity fields, missed/overdue handling, and any relationship to repair work orders. Then update requirements, ERD, data dictionary, API, and UI specifications together.
+- **Current behavior:** Stage 7 implements calibration only. It does not create schedules, recurring jobs, preventive-maintenance activities, alerts, or work orders.
+- **Approval needed:** Yes, before adding preventive-maintenance models or automated scheduling.
+
+### DEC-13: Failed Calibration Asset Disposition
+- **Classification:** Requires stakeholder approval; conservative behavior is implemented without automatic operational-status changes.
+- **Evidence:** FR-008 requires recording pass/fail and says a passing calibration clears overdue status. The calibration workflow diagram proposes marking a failed instrument `DEFECTIVE` and automatically opening an urgent work order, but the approved ERD has no calibration-to-work-order relationship or failure-trigger field; FR-008 and BR-009 do not define that transition.
+- **Resolution implemented:** Store the failed result and calculated per-event next due date; update the asset's `last_calibrated_date`; retain the asset's prior `next_calibration_due`. Do not change operational status or create a work order. Each record and asset date update is audited transactionally.
+- **Recommendation:** Confirm whether a failed calibration must mark an asset `DEFECTIVE`, create or link a work order, require verification, and/or use a distinct calibration status before extending the state machine.
+- **Approval needed:** Yes, before changing asset status or automatically creating/linking a work order on failure.
+
+### DEC-14: Calibration Reminder Horizon and Delivery
+- **Classification:** Query behavior is implemented; reminder cadence and delivery remain unresolved.
+- **Evidence:** Phase 1 scope lists 30/15/7-day proactive alerts as Release 2; the UI specification describes a 7-day dashboard view; the calibration workflow shows a daily evaluator with a 30-day window; architecture describes a configurable window; and the API design exposes a `within_days` query parameter.
+- **Resolution implemented:** The due-list API requires the caller to supply `within_days` and computes due/overdue status on read. No background scheduler, persisted status, notification, or default warning horizon is added.
+- **Recommendation:** Confirm the reminder windows, recipients, delivery channel, and whether reminders are in MVP or Release 2 before implementing automated alerts.
+- **Approval needed:** Yes, for any default cadence or proactive notification behavior.
+
+### DEC-15: Initial Due Date for Never-Calibrated Assets
+- **Classification:** Requires stakeholder approval; no baseline date is assigned automatically.
+- **Evidence:** `assets.next_calibration_due` is nullable. FR-008 calculates the next due date after a calibration event, but the approved materials do not state whether an asset with no calibration history should use commissioning date, purchase date, system onboarding date, or another baseline. Those source dates can also be absent.
+- **Current behavior:** Assets without a recorded next due date are excluded from upcoming/overdue results and display that no due date is recorded. Asset registration does not infer a calibration deadline.
+- **Recommendation:** Define the initial calibration baseline and how legacy assets without reliable commissioning dates should be handled; decide whether they need a separate "date not recorded" review list.
+- **Approval needed:** Yes, before automatically assigning initial due dates or classifying undated assets as overdue.

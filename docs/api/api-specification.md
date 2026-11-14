@@ -226,6 +226,7 @@ Category reads support asset registration. The approved role matrix does not def
     "warranty_expiry_date": "2027-10-01",
     "last_calibrated_date": null,
     "next_calibration_due": null,
+    "calibration_overdue": false,
     "qr_code_url": "/api/v1/assets/b182fb5a-5ffb-46d5-bb90-07e4d82531cd/qr",
     "created_at": "2026-11-13T14:35:10Z",
     "updated_at": "2026-11-13T14:35:10Z"
@@ -284,13 +285,14 @@ The API returns `401` when unauthenticated, `403` for a role or laboratory-scope
 
 ## 4. Maintenance & Work Order Endpoints
 
-The Stage 6 implementation uses only the approved `work_orders` and
-`maintenance_logs` tables. All endpoints require a bearer access token. Lab
-Managers can access only work orders for laboratories they currently manage;
-Lab Technicians are limited to their department; Maintenance Technicians can
-read and act only on tickets assigned to them; ULMD Admins and Auditors have
-university-wide read access. The API independently enforces every role and
-scope rule.
+The Stage 6 implementation uses the approved `work_orders` and
+`maintenance_logs` tables and the existing append-only `audit_logs` table. All
+endpoints require a bearer access token. Lab Managers can access only work
+orders for laboratories they currently manage; Lab Technicians are limited to
+their department; Maintenance Technicians can read and act on tickets assigned
+to them. Explicitly configured external-parts approvers can also read relevant
+approval requests. ULMD Admins and Auditors have university-wide read access.
+The API independently enforces every role and scope rule.
 
 ### 4.1 `POST /api/v1/work-orders`
 - **Description:** Report a fault and open a work order.
@@ -339,6 +341,9 @@ scope rule.
     "created_at": "2026-11-11T14:40:00Z",
     "resolved_at": null,
     "closed_at": null,
+    "external_parts_approval": null,
+    "approval_actions_configured": false,
+    "can_decide_external_parts_approval": false,
     "maintenance_logs": [],
     "status_history": [
       {
@@ -350,6 +355,8 @@ scope rule.
         "old_assignee_id": null,
         "new_assignee_id": null,
         "notes": null,
+        "external_parts_request_details": null,
+        "external_parts_decision": null,
         "occurred_at": "2026-11-11T14:40:00Z"
       }
     ]
@@ -379,7 +386,54 @@ scope rule.
   `IN_PROGRESS -> AWAITING_PARTS`, and `AWAITING_PARTS -> IN_PROGRESS`.
   Invalid transitions return `409 Conflict`.
 
-### 4.5 `POST /api/v1/work-orders/{order_id}/logs`
+### 4.5 `POST /api/v1/work-orders/{order_id}/external-parts-approval`
+- **Description:** Explicitly request approval for external parts while the
+  assigned technician is actively repairing or awaiting parts. This endpoint
+  does not infer a price threshold or create procurement activity.
+- **Security:** The currently assigned `MAINTENANCE_TECH` only.
+- **Request Body:** `{ "request_details": "<non-empty free-text details>" }`.
+- **Behavior:** Valid only from `IN_PROGRESS` or `AWAITING_PARTS`. The service
+  stores the requester's ID and timestamp, saves the previous status, sets the
+  approval decision to `PENDING`, and changes the work order to
+  `AWAITING_APPROVAL`. The asset's existing operational condition is unchanged.
+  The work-order update and immutable audit snapshot commit in one transaction.
+- **Response (`200 OK`):** Updated `WorkOrderRead`; its
+  `external_parts_approval` object contains request details, requester and
+  timestamp, previous status, current decision, and optional decision fields.
+  `approval_actions_configured` indicates whether the setting is non-empty;
+  `can_decide_external_parts_approval` is computed for the signed-in user.
+- **Errors:** `403` if the caller is not the assigned technician; `409` if the
+  work order is not in an eligible status; `422` for empty request details;
+  `503` if no approver role is configured.
+
+### 4.6 `PUT /api/v1/work-orders/{order_id}/external-parts-approval/decision`
+- **Description:** Record an approval or rejection.
+- **Security:** Any user whose existing role is explicitly included in
+  `MAINTENANCE_APPROVER_ROLES`, except the user who requested the approval.
+- **Configuration:** `MAINTENANCE_APPROVER_ROLES` is an optional,
+  comma-separated list containing only existing application role names. It is
+  empty by default; with no configured role, both approval request and
+  decision endpoints return `503`. Configuring multiple roles makes each
+  listed role eligible to decide; it does not require multiple approvals.
+- **Request Body:**
+  ```json
+  {
+    "decision": "APPROVED",
+    "decision_notes": "Optional decision rationale."
+  }
+  ```
+  `decision` is `APPROVED` or `REJECTED`; `decision_notes` may be null or
+  omitted.
+- **Behavior:** Only a `PENDING` request on an `AWAITING_APPROVAL` work order
+  can be decided. Approval records the actor, timestamp, and optional notes,
+  then restores the saved previous status (`IN_PROGRESS` or `AWAITING_PARTS`).
+  Rejection records the actor, timestamp, and optional notes but leaves the
+  order in `AWAITING_APPROVAL`; no post-rejection status or asset disposition
+  is inferred. Each decision and its audit snapshot commit atomically.
+- **Errors:** `403` for an unconfigured role or self-approval; `409` if no
+  pending request exists; `503` if no approver role is configured.
+
+### 4.7 `POST /api/v1/work-orders/{order_id}/logs`
 - **Description:** Record a repair activity, resolving the order for custodian
   verification.
 - **Security:** The assigned `MAINTENANCE_TECH`, or `ULMD_ADMIN` as allowed by
@@ -419,7 +473,7 @@ scope rule.
   }
   ```
 
-### 4.6 `PUT /api/v1/work-orders/{order_id}/close`
+### 4.8 `PUT /api/v1/work-orders/{order_id}/close`
 - **Description:** Verify or reject a resolved repair.
 - **Security:** The custodian `LAB_MANAGER` for the asset's laboratory or
   `ULMD_ADMIN`.
@@ -439,16 +493,84 @@ scope rule.
   transaction. Both outcomes return `200 OK` with the full updated work-order
   resource.
 
-### 4.7 Workflow boundary and errors
+### 4.9 Workflow boundary and errors
 - Implemented workflow: `OPEN -> ASSIGNED -> IN_PROGRESS`, optional
-  `AWAITING_PARTS -> IN_PROGRESS`, then `RESOLVED -> CLOSED` after verification.
-  A failed verification returns the order to `IN_PROGRESS`.
-- The conditional `AWAITING_APPROVAL` state in FR-007 / DEC-02 is not present
-  in the current schema or API. External-parts approval criteria, approving
-  authority, and required evidence need stakeholder confirmation first.
+  `AWAITING_PARTS -> IN_PROGRESS`, optional request transition to
+  `AWAITING_APPROVAL`, then approval restores the prior state. A rejected
+  request remains in `AWAITING_APPROVAL` pending stakeholder disposition.
+  Repair proceeds to `RESOLVED -> CLOSED` after verification; failed repair
+  verification returns the order to `IN_PROGRESS`.
+- The request captures free-text details only. Approval trigger thresholds,
+  authorized role designation, supporting documentation, multiple-approval
+  policy, and rejection/cancellation disposition remain stakeholder decisions.
+  No procurement or spending workflow is implemented. See [DEC-02](../design/phase-2-open-decisions.md#dec-02-outcome-external-parts-approval-state).
 - The proposed local routine-maintenance workflow (DEC-03) is not implemented.
   Fault reports always use the approved work-order flow.
 - Common errors: `401` for missing/invalid authentication, `403` for
   role/scope violations, `404` for an unknown asset or work order, `409` for
   invalid asset state, duplicate active order, invalid transition, or
-  unresolved outcome policy, and `422` for malformed or out-of-range fields.
+  unresolved outcome policy, `422` for malformed or out-of-range fields, and
+  `503` when external-parts approval has no configured approver role.
+
+## 5. Calibration Tracking
+
+Calibration history and due status use the ERD-approved `calibration_logs`,
+`assets`, and `asset_categories` entities. The system does not create an
+independent preventive-maintenance schedule.
+
+### `GET /api/v1/calibrations/due`
+- **Security:** Any authenticated role may view due information.
+- **Query:** `within_days` is required (non-negative); `page` defaults to
+  `1`; `size` defaults to `20` and is limited to `100`.
+- **Behavior:** Returns assets whose category requires calibration and whose
+  `next_calibration_due` is on or before UTC today plus the requested number of
+  days. A due date earlier than today is `OVERDUE`; a date today or later in
+  the requested window is `UPCOMING`. The result is a computed paginated view,
+  not a persisted status or scheduled notification. Assets with no recorded
+  due date are omitted; no initial date is inferred.
+- **Response:** Standard page envelope with asset ID/code, model, manufacturer,
+  category, laboratory, room, last-calibrated date, due date, and computed
+  status.
+- **Errors:** `422` for a missing/negative window or a cutoff outside the
+  supported date range.
+
+### `GET /api/v1/calibrations`
+- **Security:** `ULMD_ADMIN`, `MAINTENANCE_TECH`, or `AUDITOR`.
+- **Query:** Optional `asset_id`, `page` (default `1`), and `size` (default
+  `20`, maximum `100`).
+- **Behavior:** Returns read-only calibration history, newest calibration date
+  first, in the standard page envelope. No edit or delete endpoint is exposed.
+
+### `POST /api/v1/calibrations`
+- **Security:** `ULMD_ADMIN` or `MAINTENANCE_TECH`.
+- **Request (`application/json`):**
+  ```json
+  {
+    "asset_id": "b182fb5a-5ffb-46d5-bb90-07e4d82531cd",
+    "calibration_date": "2026-11-14",
+    "standard_used": "Traceable absorbance standard",
+    "certificate_reference": "CERT-2026-01",
+    "accreditation_body": null,
+    "passed": true,
+    "notes": "Bench verification"
+  }
+  ```
+- **Behavior:** The asset must exist, its category must require calibration,
+  and that category must have a positive `default_calibration_interval_days`.
+  The service calculates `next_due_date` as the calibration date plus that
+  category interval; clients cannot supply the calculated field. It appends a
+  `calibration_logs` row and calibration/asset JSONB snapshots to the existing
+  append-only `audit_logs` in one transaction. A passing result updates the
+  asset's last-calibrated and next-due dates. A failed result updates the
+  last-calibrated date only and retains the prior asset due date pending
+  stakeholder definition of failed-calibration disposition.
+- **Response (`201 Created`):** Calibration record, including the calculated
+  `next_due_date`, asset code, and technician.
+- **Errors:** `403` for unauthorized roles, `404` for an unknown asset, `409`
+  when the asset category does not require calibration or has no positive
+  interval, and `422` for invalid fields.
+
+Asset passport and inventory responses include a computed `calibration_overdue`
+boolean derived from the due date. No database column, daily scheduler,
+automatic work order, notification, certificate-file upload, or preventive
+maintenance schedule is added. See [Stage 7 decision boundaries](../design/phase-2-open-decisions.md#4-stage-7-calibration-and-preventive-maintenance-boundaries).

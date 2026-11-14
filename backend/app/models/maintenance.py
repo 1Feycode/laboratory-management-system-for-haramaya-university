@@ -32,8 +32,48 @@ class WorkOrder(Base):
         ),
         CheckConstraint(
             "status IN "
-            "('OPEN', 'ASSIGNED', 'IN_PROGRESS', 'AWAITING_PARTS', 'RESOLVED', 'CLOSED')",
+            "('OPEN', 'ASSIGNED', 'IN_PROGRESS', 'AWAITING_PARTS', "
+            "'AWAITING_APPROVAL', 'RESOLVED', 'CLOSED')",
             name="ck_work_orders_status",
+        ),
+        CheckConstraint(
+            "external_parts_decision IS NULL OR "
+            "external_parts_decision IN ('PENDING', 'APPROVED', 'REJECTED')",
+            name="ck_work_orders_external_parts_decision",
+        ),
+        CheckConstraint(
+            "external_parts_previous_status IS NULL OR "
+            "external_parts_previous_status IN ('IN_PROGRESS', 'AWAITING_PARTS')",
+            name="ck_work_orders_external_parts_previous_status",
+        ),
+        CheckConstraint(
+            "("
+            "external_parts_request_details IS NULL AND "
+            "external_parts_requested_by IS NULL AND "
+            "external_parts_requested_at IS NULL AND "
+            "external_parts_previous_status IS NULL AND "
+            "external_parts_decision IS NULL AND "
+            "external_parts_decided_by IS NULL AND "
+            "external_parts_decided_at IS NULL AND "
+            "external_parts_decision_notes IS NULL"
+            ") OR ("
+            "external_parts_request_details IS NOT NULL AND "
+            "external_parts_requested_by IS NOT NULL AND "
+            "external_parts_requested_at IS NOT NULL AND "
+            "external_parts_previous_status IS NOT NULL AND "
+            "("
+            "("
+            "external_parts_decision = 'PENDING' AND "
+            "external_parts_decided_by IS NULL AND "
+            "external_parts_decided_at IS NULL"
+            ") OR ("
+            "external_parts_decision IN ('APPROVED', 'REJECTED') AND "
+            "external_parts_decided_by IS NOT NULL AND "
+            "external_parts_decided_at IS NOT NULL"
+            ")"
+            ")"
+            ")",
+            name="ck_work_orders_external_parts_approval_state",
         ),
         Index("idx_wo_asset", "asset_id"),
         Index("idx_wo_status", "status"),
@@ -69,6 +109,34 @@ class WorkOrder(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
     )
     verification_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    external_parts_request_details: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )
+    external_parts_requested_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    external_parts_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    external_parts_previous_status: Mapped[str | None] = mapped_column(
+        String(50), nullable=True
+    )
+    external_parts_decision: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )
+    external_parts_decided_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    external_parts_decided_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    external_parts_decision_notes: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -83,6 +151,12 @@ class WorkOrder(Base):
     reporter: Mapped["User"] = relationship(foreign_keys=[reported_by])
     assignee: Mapped["User | None"] = relationship(foreign_keys=[assigned_to])
     verifier: Mapped["User | None"] = relationship(foreign_keys=[verified_by])
+    external_parts_requester: Mapped["User | None"] = relationship(
+        foreign_keys=[external_parts_requested_by]
+    )
+    external_parts_decider: Mapped["User | None"] = relationship(
+        foreign_keys=[external_parts_decided_by]
+    )
     logs: Mapped[list["MaintenanceLog"]] = relationship(
         back_populates="work_order", passive_deletes="all"
     )

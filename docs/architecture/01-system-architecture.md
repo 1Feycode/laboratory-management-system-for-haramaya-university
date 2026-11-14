@@ -99,9 +99,9 @@ All API error responses follow the standard RFC 7807 specification:
 
 The MVP does not introduce a separate notification service, message broker, or persistent `notifications` table. Alerts are **derived views** over authoritative workflow state:
 
-- **Work order dispatch queue:** `work_orders` with status `OPEN`, ordered by severity and age. `AWAITING_APPROVAL` is only a proposed DEC-02 state and is not implemented pending stakeholder confirmation.
+- **Work order dispatch queue:** `work_orders` with status `OPEN`, ordered by severity and age. Explicit external-parts requests use `AWAITING_APPROVAL`; configured existing-role approvers can see those items. Rejected requests remain blocked there until stakeholders confirm their disposition.
 - **Transfer inbox:** all `asset_transfers` with status `PENDING_RECEIVER` for the destination Lab Manager, and `PENDING_ULMD` for ULMD administrators.
-- **Calibration warning queue:** assets whose `next_calibration_due` falls within the configured warning window, plus overdue assets.
+- **Calibration due view:** an authenticated query computes assets whose `next_calibration_due` falls within the caller-supplied `within_days` window, plus overdue assets. The query has no scheduler or notification side effects.
 - **Dashboard badges:** counts computed from the same queries.
 
 This keeps the MVP stateless with respect to notifications and avoids adding infrastructure that would exceed the 8 GB RAM constraint. Email/SMS delivery and persistent notification history are deferred to Release 2 (see [Open Decisions](../design/phase-2-open-decisions.md)).

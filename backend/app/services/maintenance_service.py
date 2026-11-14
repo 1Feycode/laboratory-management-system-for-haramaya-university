@@ -6,17 +6,21 @@ from decimal import Decimal
 from typing import Literal
 
 from fastapi import HTTPException
-from sqlalchemy import Integer, case, desc, func, select
+from sqlalchemy import Integer, and_, case, desc, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from app.core.config import get_settings
 from app.models.asset import Asset, AssetAuditLog
 from app.models.maintenance import MaintenanceLog, WorkOrder
 from app.models.organization import Laboratory
 from app.models.user import User
 from app.schemas.maintenance import (
     FaultReportCreate,
+    ExternalPartsApprovalDecisionUpdate,
+    ExternalPartsApprovalRead,
+    ExternalPartsApprovalRequest,
     MaintenanceLogCreate,
     MaintenanceLogRead,
     MaintenancePage,
@@ -37,6 +41,9 @@ AuditAction = Literal[
     "MAINTENANCE_LOG_ADDED",
     "WORK_ORDER_REPAIR_REJECTED",
     "WORK_ORDER_CLOSED",
+    "EXTERNAL_PARTS_APPROVAL_REQUESTED",
+    "EXTERNAL_PARTS_APPROVAL_APPROVED",
+    "EXTERNAL_PARTS_APPROVAL_REJECTED",
 ]
 
 
@@ -56,6 +63,8 @@ def _work_order_query():
             joinedload(WorkOrder.reporter),
             joinedload(WorkOrder.assignee),
             joinedload(WorkOrder.verifier),
+            joinedload(WorkOrder.external_parts_requester),
+            joinedload(WorkOrder.external_parts_decider),
             selectinload(WorkOrder.logs).joinedload(MaintenanceLog.technician),
         )
     )
@@ -73,6 +82,30 @@ def _work_order_values(order: WorkOrder) -> dict[str, object]:
         "fault_description": order.fault_description,
         "verified_by": str(order.verified_by) if order.verified_by else None,
         "verification_notes": order.verification_notes,
+        "external_parts_request_details": order.external_parts_request_details,
+        "external_parts_requested_by": (
+            str(order.external_parts_requested_by)
+            if order.external_parts_requested_by
+            else None
+        ),
+        "external_parts_requested_at": (
+            order.external_parts_requested_at.isoformat()
+            if order.external_parts_requested_at
+            else None
+        ),
+        "external_parts_previous_status": order.external_parts_previous_status,
+        "external_parts_decision": order.external_parts_decision,
+        "external_parts_decided_by": (
+            str(order.external_parts_decided_by)
+            if order.external_parts_decided_by
+            else None
+        ),
+        "external_parts_decided_at": (
+            order.external_parts_decided_at.isoformat()
+            if order.external_parts_decided_at
+            else None
+        ),
+        "external_parts_decision_notes": order.external_parts_decision_notes,
         "created_at": order.created_at.isoformat() if order.created_at else None,
         "resolved_at": order.resolved_at.isoformat() if order.resolved_at else None,
         "closed_at": order.closed_at.isoformat() if order.closed_at else None,
@@ -110,8 +143,34 @@ def _audit(
 
 
 def _order_read(
-    order: WorkOrder, history: list[WorkOrderStatusEvent]
+    order: WorkOrder, history: list[WorkOrderStatusEvent], user: User
 ) -> WorkOrderRead:
+    settings = get_settings()
+    approval_roles = settings.maintenance_approval_role_names
+    approval = None
+    if (
+        order.external_parts_request_details is not None
+        and order.external_parts_requested_by is not None
+        and order.external_parts_requested_at is not None
+        and order.external_parts_previous_status is not None
+        and order.external_parts_decision is not None
+    ):
+        approval = ExternalPartsApprovalRead(
+            request_details=order.external_parts_request_details,
+            requested_by=order.external_parts_requested_by,
+            requester_name=order.external_parts_requester.full_name,
+            requested_at=order.external_parts_requested_at,
+            previous_status=order.external_parts_previous_status,
+            decision=order.external_parts_decision,
+            decided_by=order.external_parts_decided_by,
+            decider_name=(
+                order.external_parts_decider.full_name
+                if order.external_parts_decider
+                else None
+            ),
+            decided_at=order.external_parts_decided_at,
+            decision_notes=order.external_parts_decision_notes,
+        )
     return WorkOrderRead(
         id=order.id,
         ticket_number=order.ticket_number,
@@ -135,6 +194,13 @@ def _order_read(
         created_at=order.created_at,
         resolved_at=order.resolved_at,
         closed_at=order.closed_at,
+        external_parts_approval=approval,
+        approval_actions_configured=bool(approval_roles),
+        can_decide_external_parts_approval=(
+            bool(approval_roles)
+            and user.role.name in approval_roles
+            and user.id != order.external_parts_requested_by
+        ),
         maintenance_logs=[
             MaintenanceLogRead(
                 id=log.id,
@@ -181,7 +247,14 @@ async def _status_history(
                 new_status=new_values["status"],
                 old_assignee_id=old_values.get("assigned_to"),
                 new_assignee_id=new_values.get("assigned_to"),
-                notes=new_values.get("verification_notes"),
+                notes=(
+                    new_values.get("verification_notes")
+                    or new_values.get("external_parts_decision_notes")
+                ),
+                external_parts_request_details=new_values.get(
+                    "external_parts_request_details"
+                ),
+                external_parts_decision=new_values.get("external_parts_decision"),
                 occurred_at=record.created_at,
             )
         )
@@ -211,6 +284,12 @@ def _ensure_report_access(user: User, asset: Asset) -> None:
 def _ensure_read_access(user: User, order: WorkOrder) -> None:
     role = user.role.name
     if role in {"ULMD_ADMIN", "AUDITOR"}:
+        return
+    if (
+        order.external_parts_requested_by is not None
+        and user.id != order.external_parts_requested_by
+        and role in get_settings().maintenance_approval_role_names
+    ):
         return
     if role == "MAINTENANCE_TECH" and order.assigned_to == user.id:
         return
@@ -255,13 +334,12 @@ async def _load_order(session: AsyncSession, order_id: uuid.UUID) -> WorkOrder:
 
 
 async def _read_order(
-    session: AsyncSession, order_id: uuid.UUID, user: User | None = None
+    session: AsyncSession, order_id: uuid.UUID, user: User
 ) -> WorkOrderRead:
     order = await _load_order(session, order_id)
-    if user is not None:
-        _ensure_read_access(user, order)
+    _ensure_read_access(user, order)
     history = await _status_history(session, [order.id])
-    return _order_read(order, history[order.id])
+    return _order_read(order, history[order.id], user)
 
 
 async def list_work_orders(
@@ -282,23 +360,41 @@ async def list_work_orders(
     if asset_id:
         filters.append(WorkOrder.asset_id == asset_id)
     role = user.role.name
+    approval_scope = and_(
+        WorkOrder.status == "AWAITING_APPROVAL",
+        WorkOrder.external_parts_decision == "PENDING",
+        WorkOrder.external_parts_requested_by != user.id,
+    )
+    if role not in get_settings().maintenance_approval_role_names:
+        approval_scope = None
     if role == "MAINTENANCE_TECH":
-        filters.append(WorkOrder.assigned_to == user.id)
-    elif role == "LAB_MANAGER":
+        technician_scope = WorkOrder.assigned_to == user.id
         filters.append(
-            WorkOrder.asset_id.in_(
-                select(Asset.id)
-                .join(Laboratory, Asset.laboratory_id == Laboratory.id)
-                .where(Laboratory.manager_id == user.id)
-            )
+            or_(technician_scope, approval_scope)
+            if approval_scope is not None
+            else technician_scope
+        )
+    elif role == "LAB_MANAGER":
+        manager_scope = WorkOrder.asset_id.in_(
+            select(Asset.id)
+            .join(Laboratory, Asset.laboratory_id == Laboratory.id)
+            .where(Laboratory.manager_id == user.id)
+        )
+        filters.append(
+            or_(manager_scope, approval_scope)
+            if approval_scope is not None
+            else manager_scope
         )
     elif role == "LAB_TECH":
+        lab_tech_scope = WorkOrder.asset_id.in_(
+            select(Asset.id)
+            .join(Laboratory, Asset.laboratory_id == Laboratory.id)
+            .where(Laboratory.department_id == user.department_id)
+        )
         filters.append(
-            WorkOrder.asset_id.in_(
-                select(Asset.id)
-                .join(Laboratory, Asset.laboratory_id == Laboratory.id)
-                .where(Laboratory.department_id == user.department_id)
-            )
+            or_(lab_tech_scope, approval_scope)
+            if approval_scope is not None
+            else lab_tech_scope
         )
     total = await session.scalar(
         select(func.count(WorkOrder.id)).where(*filters)
@@ -324,7 +420,7 @@ async def list_work_orders(
         _ensure_read_access(user, order)
     histories = await _status_history(session, [order.id for order in records])
     return MaintenancePage(
-        items=[_order_read(order, histories[order.id]) for order in records],
+        items=[_order_read(order, histories[order.id], user) for order in records],
         total=total,
         page=page,
         size=size,
@@ -518,6 +614,133 @@ async def update_work_order_status(
         )
     )
     await _commit(session, "Work order status could not be changed")
+    return await _read_order(session, order.id, user)
+
+
+async def request_external_parts_approval(
+    session: AsyncSession,
+    order_id: uuid.UUID,
+    payload: ExternalPartsApprovalRequest,
+    user: User,
+    ip_address: str | None,
+) -> WorkOrderRead:
+    order = await _get_order_record(session, order_id, lock=True)
+    if user.role.name != "MAINTENANCE_TECH" or order.assigned_to != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the assigned Maintenance Technician can request external-parts approval",
+        )
+    if not get_settings().maintenance_approval_role_names:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "External-parts approval requests are disabled until stakeholders "
+                "designate authorized existing application roles"
+            ),
+        )
+    if order.status not in {"IN_PROGRESS", "AWAITING_PARTS"}:
+        raise HTTPException(
+            status_code=409,
+            detail="External-parts approval can be requested only for active repair work",
+        )
+
+    old_values = _work_order_values(order)
+    order.external_parts_request_details = payload.request_details
+    order.external_parts_requested_by = user.id
+    order.external_parts_requested_at = datetime.now(timezone.utc)
+    order.external_parts_previous_status = order.status
+    order.external_parts_decision = "PENDING"
+    order.external_parts_decided_by = None
+    order.external_parts_decided_at = None
+    order.external_parts_decision_notes = None
+    order.status = "AWAITING_APPROVAL"
+    session.add(
+        _audit(
+            user=user,
+            action="EXTERNAL_PARTS_APPROVAL_REQUESTED",
+            entity_type="work_orders",
+            entity_id=order.id,
+            old_values=old_values,
+            new_values=_work_order_values(order),
+            ip_address=ip_address,
+        )
+    )
+    await _commit(session, "External-parts approval request could not be saved")
+    logger.info(
+        "maintenance.external_parts_approval_requested",
+        extra={"work_order_id": str(order.id)},
+    )
+    return await _read_order(session, order.id, user)
+
+
+async def decide_external_parts_approval(
+    session: AsyncSession,
+    order_id: uuid.UUID,
+    payload: ExternalPartsApprovalDecisionUpdate,
+    user: User,
+    ip_address: str | None,
+) -> WorkOrderRead:
+    order = await _get_order_record(session, order_id, lock=True)
+    settings = get_settings()
+    approval_roles = settings.maintenance_approval_role_names
+    if not approval_roles:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "External-parts approval is disabled until stakeholders designate "
+                "authorized existing application roles"
+            ),
+        )
+    if user.role.name not in approval_roles:
+        raise HTTPException(
+            status_code=403,
+            detail="Your role is not configured to decide external-parts approvals",
+        )
+    if order.external_parts_requested_by == user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="The user who requested external-parts approval cannot decide it",
+        )
+    if (
+        order.status != "AWAITING_APPROVAL"
+        or order.external_parts_decision != "PENDING"
+        or order.external_parts_previous_status is None
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="This work order has no pending external-parts approval",
+        )
+
+    old_values = _work_order_values(order)
+    order.external_parts_decision = payload.decision
+    order.external_parts_decided_by = user.id
+    order.external_parts_decided_at = datetime.now(timezone.utc)
+    order.external_parts_decision_notes = payload.decision_notes
+    if payload.decision == "APPROVED":
+        order.status = order.external_parts_previous_status
+        action: AuditAction = "EXTERNAL_PARTS_APPROVAL_APPROVED"
+    else:
+        # Rejection disposition is unresolved; keep the work order blocked.
+        action = "EXTERNAL_PARTS_APPROVAL_REJECTED"
+    session.add(
+        _audit(
+            user=user,
+            action=action,
+            entity_type="work_orders",
+            entity_id=order.id,
+            old_values=old_values,
+            new_values=_work_order_values(order),
+            ip_address=ip_address,
+        )
+    )
+    await _commit(session, "External-parts approval decision could not be saved")
+    logger.info(
+        "maintenance.external_parts_approval_decided",
+        extra={
+            "work_order_id": str(order.id),
+            "decision": payload.decision,
+        },
+    )
     return await _read_order(session, order.id, user)
 
 

@@ -131,6 +131,9 @@ class Asset(Base):
     work_orders: Mapped[list["WorkOrder"]] = relationship(
         back_populates="asset", passive_deletes="all"
     )
+    calibration_logs: Mapped[list["CalibrationLog"]] = relationship(
+        back_populates="asset", passive_deletes="all"
+    )
 
 
 class AssetAuditLog(Base):

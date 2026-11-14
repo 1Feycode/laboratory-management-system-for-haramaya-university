@@ -6,8 +6,10 @@ export type WorkOrderStatus =
   | "ASSIGNED"
   | "IN_PROGRESS"
   | "AWAITING_PARTS"
+  | "AWAITING_APPROVAL"
   | "RESOLVED"
   | "CLOSED";
+export type ExternalPartsApprovalDecision = "PENDING" | "APPROVED" | "REJECTED";
 export type WorkOrderSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type FailureCategory =
   | "ELECTRICAL"
@@ -42,7 +44,22 @@ export interface WorkOrderStatusEvent {
   old_assignee_id: string | null;
   new_assignee_id: string | null;
   notes: string | null;
+  external_parts_request_details: string | null;
+  external_parts_decision: ExternalPartsApprovalDecision | null;
   occurred_at: string;
+}
+
+export interface ExternalPartsApproval {
+  request_details: string;
+  requested_by: string;
+  requester_name: string;
+  requested_at: string;
+  previous_status: "IN_PROGRESS" | "AWAITING_PARTS";
+  decision: ExternalPartsApprovalDecision;
+  decided_by: string | null;
+  decider_name: string | null;
+  decided_at: string | null;
+  decision_notes: string | null;
 }
 
 export interface WorkOrder {
@@ -68,6 +85,9 @@ export interface WorkOrder {
   created_at: string;
   resolved_at: string | null;
   closed_at: string | null;
+  external_parts_approval: ExternalPartsApproval | null;
+  approval_actions_configured: boolean;
+  can_decide_external_parts_approval: boolean;
   maintenance_logs: MaintenanceLog[];
   status_history: WorkOrderStatusEvent[];
 }
@@ -116,6 +136,31 @@ export async function updateWorkOrderStatus(
   const { data } = await api.put<WorkOrder>(
     `/api/v1/work-orders/${id}/status`,
     { status },
+  );
+  return data;
+}
+
+export async function requestExternalPartsApproval(
+  id: string,
+  request_details: string,
+): Promise<WorkOrder> {
+  const { data } = await api.post<WorkOrder>(
+    `/api/v1/work-orders/${id}/external-parts-approval`,
+    { request_details },
+  );
+  return data;
+}
+
+export async function decideExternalPartsApproval(
+  id: string,
+  input: {
+    decision: "APPROVED" | "REJECTED";
+    decision_notes: string | null;
+  },
+): Promise<WorkOrder> {
+  const { data } = await api.put<WorkOrder>(
+    `/api/v1/work-orders/${id}/external-parts-approval/decision`,
+    input,
   );
   return data;
 }

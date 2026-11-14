@@ -92,7 +92,7 @@ This document provides detailed, testable, and uniquely numbered functional requ
 - **Priority:** Must Have.
 - **Acceptance Criteria:** Ticket cannot transition to `RESOLVED` without a non-empty maintenance log; closure must persist the verifying Lab Manager UUID and verification notes.
 
-**Implementation clarification:** The `AWAITING_APPROVAL` exception is conditional on the unresolved DEC-02 external-parts approval decision. It is not implemented in the Stage 6 schema or API. The approved materials do not define approval thresholds or evidence. The allowed maintenance outcomes include `REPAIRED_DEGRADED` and `UNREPAIRABLE`, but the approved closure flow only specifies restoration to `OPERATIONAL`; the closure behavior for those outcomes also requires stakeholder clarification. See [Stage 6 open decisions](../design/phase-2-open-decisions.md#3-stage-6-maintenance-decision-boundaries) and the maintenance section of the [API specification](../api/api-specification.md#4-maintenance--work-order-endpoints).
+**Implementation clarification:** The DEC-02 technical workflow is implemented: an assigned technician can explicitly submit free-text external-parts details, the order enters `AWAITING_APPROVAL`, and an approved decision restores its prior state. Authorized existing roles must be explicitly configured; the default is no approver roles. Rejection remains in `AWAITING_APPROVAL` pending a stakeholder-defined disposition. This does not resolve the missing trigger threshold, authorized approver role(s), approval count, or required supporting evidence. The approved maintenance outcomes include `REPAIRED_DEGRADED` and `UNREPAIRABLE`, but the approved closure flow only specifies restoration to `OPERATIONAL`; closure behavior for those outcomes also requires stakeholder clarification. See [Stage 6 open decisions](../design/phase-2-open-decisions.md#3-stage-6-maintenance-decision-boundaries) and the maintenance section of the [API specification](../api/api-specification.md#4-maintenance--work-order-endpoints).
 
 ### FR-008: Calibration Tracking and Scheduling
 - **Description:** The system must record precision calibration events and track upcoming due dates.
@@ -102,6 +102,8 @@ This document provides detailed, testable, and uniquely numbered functional requ
 - **Expected Output:** HTTP 201 Created with calibration certificate reference.
 - **Priority:** Must Have.
 - **Acceptance Criteria:** Overdue assets must automatically display a `CALIBRATION_OVERDUE` badge across all views.
+
+**Stage 7 implementation clarification:** The `calibration_logs.next_due_date` field is calculated from the asset category's `default_calibration_interval_days`; it is not supplied by the client. This follows the approved data dictionary and the scope requirement for automatic due-date calculation, resolving the input-field conflict above. A failed result is retained in history and updates `last_calibrated_date`; until stakeholders define failed-calibration disposition, the current asset due date is not advanced and no defective status or work order is created. See [Stage 7 decisions](../design/phase-2-open-decisions.md#4-stage-7-calibration-and-preventive-maintenance-boundaries).
 
 ---
 

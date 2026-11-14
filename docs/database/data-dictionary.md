@@ -116,6 +116,7 @@ Stores durable laboratory machinery compliant with WHO LQSI and Africa CDC stand
 - **`warranty_expiry_date`** (`DATE`, NULLABLE): Warranty expiration date.
 - **`last_calibrated_date`** (`DATE`, NULLABLE): Most recent calibration date.
 - **`next_calibration_due`** (`DATE`, NULLABLE): Scheduled calibration deadline.
+- **Calibration response flag:** `calibration_overdue` is computed for API responses from `requires_calibration` and `next_calibration_due < current UTC date`; it is not a database column or operational status.
 - **`qr_code_path`** (`VARCHAR(255)`, NULLABLE): Vector QR code storage reference.
 - **`created_at`** (`TIMESTAMPTZ`, NOT NULL, DEFAULT `NOW()`): Creation timestamp.
 - **`updated_at`** (`TIMESTAMPTZ`, NOT NULL, DEFAULT `NOW()`): Mutation timestamp.
@@ -161,14 +162,24 @@ Tracks equipment breakdowns, technician dispatch, and resolution states.
 - **`assigned_to`** (`UUID`, NULLABLE, FK -> `users.id`): Servicing Technology Unit technician.
 - **`severity`** (`VARCHAR(30)`, NOT NULL): `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`.
 - **`failure_category`** (`VARCHAR(50)`, NOT NULL): `ELECTRICAL`, `MECHANICAL`, `OPTICAL`, `SOFTWARE`, `CONSUMABLE`, `OTHER`.
-- **`status`** (`VARCHAR(50)`, NOT NULL, DEFAULT 'OPEN'): The approved conceptual workflow lists `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `RESOLVED`, and `CLOSED`. `AWAITING_APPROVAL` is only a proposed DEC-02 external-parts approval state; it is excluded from the Stage 6 migration and API until its threshold, approver, and evidence are confirmed.
+- **`status`** (`VARCHAR(50)`, NOT NULL, DEFAULT 'OPEN'): `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `AWAITING_APPROVAL`, `RESOLVED`, or `CLOSED`. `AWAITING_APPROVAL` is entered only when the assigned technician explicitly submits an external-parts approval request. Rejection leaves the order in this state pending stakeholder disposition.
 - **`fault_description`** (`TEXT`, NOT NULL): Detailed symptom report.
 - **`verified_by`** (`UUID`, NULLABLE, FK -> `users.id`): Custodian Lab Manager who signed off closure.
 - **`verification_notes`** (`TEXT`, NULLABLE): Lab Manager's operational test and sign-off comments.
+- **`external_parts_request_details`** (`TEXT`, NULLABLE): Free-text description submitted by the assigned Maintenance Technician when requesting approval for external parts. It does not represent a quote, cost, procurement order, or proof of expenditure.
+- **`external_parts_requested_by`** (`UUID`, NULLABLE, FK -> `users.id` ON DELETE RESTRICT): Requesting Maintenance Technician.
+- **`external_parts_requested_at`** (`TIMESTAMPTZ`, NULLABLE): Request timestamp.
+- **`external_parts_previous_status`** (`VARCHAR(50)`, NULLABLE): `IN_PROGRESS` or `AWAITING_PARTS`; approval restores this pre-request state.
+- **`external_parts_decision`** (`VARCHAR(20)`, NULLABLE): `PENDING`, `APPROVED`, or `REJECTED`.
+- **`external_parts_decided_by`** (`UUID`, NULLABLE, FK -> `users.id` ON DELETE RESTRICT): User who recorded the decision.
+- **`external_parts_decided_at`** (`TIMESTAMPTZ`, NULLABLE): Decision timestamp.
+- **`external_parts_decision_notes`** (`TEXT`, NULLABLE): Optional decision notes. A rejection leaves the work order in `AWAITING_APPROVAL`; no further transition is inferred.
 - **`created_at`** (`TIMESTAMPTZ`, NOT NULL, DEFAULT `NOW()`): Report timestamp.
 - **`resolved_at`** (`TIMESTAMPTZ`, NULLABLE): Repair completion timestamp.
 - **`closed_at`** (`TIMESTAMPTZ`, NULLABLE): Custodian verification timestamp.
+- **Constraints:** Existing severity, failure-category, and status checks; decision limited to `PENDING`/`APPROVED`/`REJECTED`; saved prior status limited to `IN_PROGRESS`/`AWAITING_PARTS`; request fields must be consistently empty or complete, and a pending versus final decision must have the corresponding decision actor/timestamp nullability.
 - **Indexes:** `idx_wo_asset (asset_id)`, `idx_wo_status (status)`, `idx_wo_assigned (assigned_to)`, `idx_wo_ticket (ticket_number)`
+- **Approval history:** The work-order row holds its latest request and decision. Each request and decision also adds a before/after JSONB snapshot to the existing append-only `audit_logs` table, preserving older requests without a new approval-history table.
 
 ### 4.3 `maintenance_logs`
 Stores detailed records of physical repairs, replaced parts, and labor expended.
@@ -186,16 +197,17 @@ Stores detailed records of physical repairs, replaced parts, and labor expended.
 Records precision instrument calibration standards, pass/fail status, and certificates.
 - **`id`** (`UUID`, PK): Primary key, default `gen_random_uuid()`.
 - **`asset_id`** (`UUID`, NOT NULL, FK -> `assets.id` ON DELETE RESTRICT): Calibrated instrument.
-- **`technician_id`** (`UUID`, NOT NULL, FK -> `users.id`): Calibrating specialist.
+- **`technician_id`** (`UUID`, NOT NULL, FK -> `users.id` ON DELETE RESTRICT): Calibrating specialist; retained calibration history cannot be orphaned by user deletion.
 - **`calibration_date`** (`DATE`, NOT NULL): Service execution date.
 - **`standard_used`** (`VARCHAR(150)`, NOT NULL): Standard or buffer reference.
 - **`certificate_reference`** (`VARCHAR(100)`, NULLABLE): Document file reference.
 - **`accreditation_body`** (`VARCHAR(150)`, NULLABLE): External metrology/accreditation body (e.g., ENAO) where applicable (DEC-05).
 - **`passed`** (`BOOLEAN`, NOT NULL): Pass/fail validation flag.
-- **`next_due_date`** (`DATE`, NOT NULL): Calculated next calibration deadline.
+- **`next_due_date`** (`DATE`, NOT NULL): Calculated as `calibration_date + asset_categories.default_calibration_interval_days`; returned by the API and retained with this event.
 - **`notes`** (`TEXT`, NULLABLE): Technical observations.
 - **`created_at`** (`TIMESTAMPTZ`, NOT NULL, DEFAULT `NOW()`): Creation timestamp.
 - **Indexes:** `idx_calib_asset (asset_id)`, `idx_calib_next_due (next_due_date)`
+- **History and asset summary:** Calibration rows are not updated or deleted through the API. Each record and the corresponding asset date mutation append audit snapshots in the same transaction. A passing calibration updates the asset's `last_calibrated_date` and `next_calibration_due`. A failed calibration updates only `last_calibrated_date`; the prior asset due date remains unchanged. Failed-calibration asset disposition is unresolved (DEC-13).
 
 ---
 
@@ -205,7 +217,7 @@ Records precision instrument calibration standards, pass/fail status, and certif
 Records an immutable log of all critical system mutations.
 - **`id`** (`BIGINT`, PK, GENERATED ALWAYS AS IDENTITY): Monotonic sequential ID.
 - **`user_id`** (`UUID`, NULLABLE, FK -> `users.id` ON DELETE SET NULL): Acting user.
-- **`action`** (`VARCHAR(100)`, NOT NULL): `ASSET_CREATED`, `STATUS_MODIFIED`, `TRANSFER_APPROVED`, `WORK_ORDER_CLOSED`.
+- **`action`** (`VARCHAR(100)`, NOT NULL): Examples include `ASSET_CREATED`, `STATUS_MODIFIED`, `TRANSFER_APPROVED`, `WORK_ORDER_CLOSED`, `CALIBRATION_LOGGED`, and `ASSET_CALIBRATION_UPDATED`.
 - **`entity_type`** (`VARCHAR(50)`, NOT NULL): Target table (e.g., `assets`, `work_orders`).
 - **`entity_id`** (`VARCHAR(100)`, NOT NULL): UUID/ID of the target entity.
 - **`old_values`** (`JSONB`, NULLABLE): Pre-mutation state snapshot.
@@ -225,7 +237,7 @@ The following values are the single source of truth for application enums, API v
 | **Application Roles** | `ULMD_ADMIN`, `MAINTENANCE_TECH`, `LAB_MANAGER`, `LAB_TECH`, `AUDITOR` | Five canonical MVP roles; see stakeholder analysis §3. |
 | **Asset Operational Status** | `OPERATIONAL`, `UNDER_MAINTENANCE`, `DEFECTIVE`, `TRANSFER_PENDING`, `DECOMMISSIONED` | `CALIBRATION_OVERDUE` is computed, not stored. |
 | **Asset Category Lab Type** | `WET`, `DRY`, `COMPUTING`, `WORKSHOP` | Stored on `laboratories.lab_type`. |
-| **Work Order Status** | `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `RESOLVED`, `CLOSED` | `AWAITING_APPROVAL` appears only in the conditional DEC-02 proposal and is not accepted by the current Stage 6 database constraint or API. |
+| **Work Order Status** | `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `AWAITING_PARTS`, `AWAITING_APPROVAL`, `RESOLVED`, `CLOSED` | External-parts requests explicitly enter `AWAITING_APPROVAL`; approval restores the prior state and rejection remains blocked pending policy. |
 | **Work Order Severity** | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` | Critical faults set the asset to `DEFECTIVE`. |
 | **Failure Category** | `ELECTRICAL`, `MECHANICAL`, `OPTICAL`, `SOFTWARE`, `CONSUMABLE`, `OTHER` | Stored on `work_orders.failure_category`. |
 | **Maintenance Outcome** | `OPERATIONAL`, `REPAIRED_DEGRADED`, `UNREPAIRABLE` | Stored on `maintenance_logs.outcome_condition`. |
