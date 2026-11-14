@@ -80,7 +80,7 @@ function BreakdownCard({
                 className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"
               >
                 <div
-                  className="h-full rounded-full bg-slate-700"
+                  className="h-full rounded-full bg-university-600"
                   style={{
                     width: `${maximum > 0 ? (item.count / maximum) * 100 : 0}%`,
                   }}
@@ -151,7 +151,7 @@ function QuickLinks({ role }: { role: string | undefined }) {
             to={link.to}
             className="group rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-slate-400 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700"
           >
-            <span className="font-semibold text-slate-900">{link.label}</span>
+            <span className="font-semibold text-university-900">{link.label}</span>
             <span className="mt-1 block text-sm leading-5 text-slate-600">
               {link.description}
             </span>
@@ -346,7 +346,7 @@ export default function DashboardPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-university-700 px-4 py-2.5 font-semibold text-white hover:bg-university-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {loading ? "Loading dashboard…" : "Apply filters"}
               </button>

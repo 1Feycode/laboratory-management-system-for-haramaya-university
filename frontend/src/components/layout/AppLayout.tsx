@@ -92,8 +92,8 @@ function NavigationLinks({
                     className={({ isActive }) =>
                       `flex min-h-11 items-center rounded-lg border-l-2 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700 ${
                         isActive
-                          ? "border-slate-800 bg-slate-100 text-slate-950"
-                          : "border-transparent text-slate-700 hover:bg-slate-100 hover:text-slate-950"
+                          ? "border-university-700 bg-university-50 text-university-950"
+                            : "border-transparent text-slate-700 hover:bg-university-50 hover:text-university-900"
                       }`
                     }
                   >
@@ -216,12 +216,20 @@ export default function AppLayout() {
             )}
             <Link
               to={homePath}
-              className="min-w-0 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-slate-700"
+              aria-label="Haramaya University Laboratory Asset Management"
+              className="min-w-0 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-university-700"
             >
-              <span className="block truncate text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                Haramaya University
-              </span>
-              <span className="mt-0.5 block truncate text-sm font-semibold text-slate-900 sm:text-base">
+              <div className="flex items-center gap-3">
+                <img
+                  src="/assets/haramaya-university-logo.png"
+                  alt="Haramaya University"
+                  className="h-7 w-auto max-w-[145px] object-contain sm:h-8 sm:max-w-[168px]"
+                />
+                <span className="hidden border-l border-slate-200 pl-3 text-xs font-medium leading-5 text-slate-600 xl:block">
+                  Laboratory Asset Management
+                </span>
+              </div>
+              <span className="sr-only">
                 Laboratory Asset Management
               </span>
             </Link>
@@ -265,6 +273,20 @@ export default function AppLayout() {
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[1800px]">
         {user && (
           <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-64 shrink-0 overflow-y-auto border-r border-slate-200 bg-white px-4 py-7 lg:block">
+            <Link
+              to="/dashboard"
+              className="mb-7 block rounded-lg border border-university-100 bg-university-50 p-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-university-700"
+              aria-label="Haramaya University dashboard"
+            >
+              <img
+                src="/assets/haramaya-university-logo.png"
+                alt="Haramaya University"
+                className="h-auto w-full max-w-[190px] object-contain"
+              />
+              <span className="mt-2 block text-xs font-semibold text-university-900">
+                Laboratory Asset Management
+              </span>
+            </Link>
             <NavigationLinks role={user.role} />
           </aside>
         )}

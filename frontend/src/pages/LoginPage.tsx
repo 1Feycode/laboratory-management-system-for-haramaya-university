@@ -60,9 +60,17 @@ export default function LoginPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6 py-12">
       <section className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-wide text-university-700">
-          Haramaya University
-        </p>
+        <Link
+          to="/"
+          className="mb-6 inline-flex rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-university-700"
+          aria-label="Return to the Laboratory Asset Management home page"
+        >
+          <img
+            src="/assets/haramaya-university-logo.png"
+            alt="Haramaya University"
+            className="h-12 w-auto max-w-full object-contain"
+          />
+        </Link>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">
           Sign in to Laboratory Assets
         </h1>
@@ -106,7 +114,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-md bg-university-800 px-4 py-2.5 font-semibold text-white hover:bg-university-700 disabled:opacity-60"
+            className="w-full rounded-md bg-university-700 px-4 py-2.5 font-semibold text-white hover:bg-university-800 disabled:opacity-60"
           >
             {submitting ? "Signing in…" : "Sign in"}
           </button>
