@@ -427,7 +427,7 @@ export default function TransferPage() {
               className="mt-1 w-full rounded border border-red-300 bg-white px-3 py-2"
             />
           </label>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="submit"
               disabled={busyTransferId === rejection.transfer.id}
@@ -487,7 +487,7 @@ export default function TransferPage() {
               onBeginReject={(record) => setRejection({ transfer: record, notes: "" })}
             />
           ))}
-          <div className="flex items-center justify-between pt-2 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-sm">
             <span className="text-slate-600">
               Page {page} of {pages || 1}
             </span>

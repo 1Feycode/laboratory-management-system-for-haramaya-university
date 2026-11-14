@@ -173,7 +173,12 @@ export default function CalibrationPage() {
         {dueLoading && <p className="mt-4 text-sm text-slate-600">Loading calibration status…</p>}
         {!dueLoading && due && (
           <>
-            <div className="mt-4 overflow-x-auto">
+            <div
+              className="table-scroll mt-4"
+              role="region"
+              aria-label="Calibration due results"
+              tabIndex={0}
+            >
               <table className="w-full min-w-[700px] text-left text-sm">
                 <thead className="border-b border-slate-200 text-slate-600">
                   <tr>
@@ -209,7 +214,7 @@ export default function CalibrationPage() {
                 </tbody>
               </table>
             </div>
-            <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
               <span>{due.total} asset(s)</span>
               <div className="flex gap-2">
                 <button type="button" disabled={duePage <= 1 || dueLoading} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => void loadDue(duePage - 1)}>Previous</button>
@@ -278,7 +283,12 @@ export default function CalibrationPage() {
             <p className="mt-4 text-sm text-slate-600">Loading calibration history…</p>
           ) : (
             <>
-              <div className="mt-4 overflow-x-auto">
+              <div
+                className="table-scroll mt-4"
+                role="region"
+                aria-label="Calibration history records"
+                tabIndex={0}
+              >
                 <table className="w-full min-w-[750px] text-left text-sm">
                   <thead className="border-b border-slate-200 text-slate-600">
                     <tr>
@@ -307,7 +317,7 @@ export default function CalibrationPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
                 <span>{history.total} record(s)</span>
                 <div className="flex gap-2">
                   <button type="button" disabled={historyPage <= 1 || historyLoading} className="rounded border px-3 py-1 disabled:opacity-50" onClick={() => setHistoryPage((current) => current - 1)}>Previous</button>

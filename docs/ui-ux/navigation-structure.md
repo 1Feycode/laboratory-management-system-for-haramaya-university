@@ -72,3 +72,10 @@ Stage 7 implements `/calibrations` for due/overdue review and calibration histor
 3. **`RoleGuard`:** Wraps sensitive views (e.g., `/admin/*`, `/assets/register`) and verifies that `currentUser.role` exists in the allowed roles array. Unauthorized access renders a high-contrast `403 Forbidden` unauthorized view with a button returning to the main dashboard.
 
 Stage 8 replaces the welcome-only dashboard for `ULMD_ADMIN`, `LAB_MANAGER`, and `AUDITOR` with scoped asset, work-order, calibration, and critical-action aggregates. Other roles retain a non-analytical welcome view; the API denies their report queries. `/reports` is visible to the same three roles and shows date-filtered maintenance counts. Organization selectors are limited to university-wide report users; scoped users cannot browse unrelated organization names from these pages. Inventory CSV export is shown only to `ULMD_ADMIN` and `AUDITOR`; backend authorization and department/laboratory scoping are independently enforced. The dashboard requires a user-supplied calibration horizon. Uptime/downtime values remain unavailable pending DEC-16, and no preventive-maintenance metrics are exposed.
+
+### Stage 10 Phase 3 application shell
+
+- On wide screens (1024px and above), authenticated pages use a persistent sidebar. At narrower widths, the navigation is available from a collapsible, keyboard-operable menu in the header.
+- The sidebar and mobile menu use the role visibility matrix above: common workspace routes remain available to authenticated users, transfer and report routes are limited to their existing route roles, and administration routes are limited to `ULMD_ADMIN`. These client-side visibility rules do not replace backend authorization.
+- The shell adds a skip-to-content link and route-aware breadcrumbs. Existing page headings remain the primary page titles.
+- Dashboard shortcuts lead to existing assets, maintenance, calibration, transfer, and report pages according to role. Dashboard visual summaries use the existing report response only; no recent-activity feed or preventive-maintenance schedule is implied.

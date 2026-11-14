@@ -615,7 +615,12 @@ export default function HierarchyManagementPage() {
           </p>
         )}
 
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <div
+          className="table-scroll rounded-xl border border-slate-200 bg-white"
+          role="region"
+          aria-label={`${entityLabels[entity]} results`}
+          tabIndex={0}
+        >
           <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
@@ -674,7 +679,7 @@ export default function HierarchyManagementPage() {
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between text-sm text-slate-600">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
           <span>
             {total === 0 ? "0 records" : `Showing ${(page - 1) * 20 + 1}–${Math.min(page * 20, total)} of ${total}`}
           </span>

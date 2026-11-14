@@ -272,7 +272,12 @@ export default function UserManagementPage() {
         ) : users.length === 0 ? (
           <p className="px-6 pb-6 text-slate-600">No user accounts have been provisioned.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div
+            className="table-scroll"
+            role="region"
+            aria-label="Provisioned user accounts"
+            tabIndex={0}
+          >
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>

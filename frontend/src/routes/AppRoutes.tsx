@@ -9,6 +9,7 @@ import CalibrationPage from "../pages/CalibrationPage";
 import DashboardPage from "../pages/DashboardPage";
 import FoundationPage from "../pages/FoundationPage";
 import HierarchyManagementPage from "../pages/HierarchyManagementPage";
+import LandingPage from "../pages/LandingPage";
 import LoginPage from "../pages/LoginPage";
 import MaintenancePage from "../pages/MaintenancePage";
 import ReportsPage from "../pages/ReportsPage";
@@ -19,6 +20,7 @@ import { ProtectedRoute, PublicOnlyRoute, RoleGuard } from "./ProtectedRoute";
 export default function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route element={<PublicOnlyRoute />}>
         <Route path="/login" element={<LoginPage />} />
       </Route>
@@ -27,7 +29,6 @@ export default function AppRoutes() {
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/assets" element={<AssetListPage />} />
           <Route path="/assets/scan" element={<AssetQrRedirectPage />} />

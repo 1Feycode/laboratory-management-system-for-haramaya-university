@@ -153,7 +153,7 @@ export default function AssetCategoryPage() {
         </div>
       </form>
 
-      <form className="mt-6 flex gap-2" onSubmit={(event) => {
+      <form className="mt-6 flex flex-wrap gap-2" onSubmit={(event) => {
         event.preventDefault();
         setPage(1);
         setSearch(searchInput.trim());
@@ -162,7 +162,12 @@ export default function AssetCategoryPage() {
         <button className="rounded border border-slate-300 px-4 py-2 text-sm" type="submit">Search</button>
       </form>
 
-      <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div
+        className="table-scroll mt-4 rounded-xl border border-slate-200 bg-white"
+        role="region"
+        aria-label="Asset categories"
+        tabIndex={0}
+      >
         <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-50 text-slate-600">
             <tr>
@@ -193,9 +198,9 @@ export default function AssetCategoryPage() {
           </tbody>
         </table>
       </div>
-      <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
         <span>{result.total} categor{result.total === 1 ? "y" : "ies"}</span>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button className="rounded border border-slate-300 px-3 py-1.5 disabled:opacity-40" disabled={page <= 1 || loading} onClick={() => setPage((current) => current - 1)} type="button">Previous</button>
           <span>Page {result.page} of {Math.max(result.pages, 1)}</span>
           <button className="rounded border border-slate-300 px-3 py-1.5 disabled:opacity-40" disabled={page >= result.pages || loading} onClick={() => setPage((current) => current + 1)} type="button">Next</button>

@@ -178,7 +178,7 @@ export default function AssetListPage() {
             Search and review registered durable laboratory equipment.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
@@ -335,7 +335,12 @@ export default function AssetListPage() {
           {error}
         </p>
       )}
-      <div className="mt-5 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div
+        className="table-scroll rounded-xl border border-slate-200 bg-white"
+        role="region"
+        aria-label="Asset inventory results"
+        tabIndex={0}
+      >
         <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-50 text-slate-600">
             <tr>
@@ -361,7 +366,15 @@ export default function AssetListPage() {
                 className="cursor-pointer hover:bg-slate-50"
                 onClick={() => navigate(`/assets/${asset.id}`)}
               >
-                <td className="px-4 py-3 font-medium text-university-800">{asset.asset_code}</td>
+                <td className="px-4 py-3 font-medium text-university-800">
+                  <Link
+                    to={`/assets/${asset.id}`}
+                    onClick={(event) => event.stopPropagation()}
+                    className="rounded-sm underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700"
+                  >
+                    {asset.asset_code}
+                  </Link>
+                </td>
                 <td className="px-4 py-3">
                   <div>{asset.model_number}</div>
                   <div className="text-xs text-slate-500">{asset.manufacturer_name} · S/N {asset.serial_number}</div>
@@ -388,7 +401,7 @@ export default function AssetListPage() {
           </tbody>
         </table>
       </div>
-      <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
         <span>{result.total} asset{result.total === 1 ? "" : "s"}</span>
         <div className="flex items-center gap-3">
           <button

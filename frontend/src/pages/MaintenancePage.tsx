@@ -952,7 +952,7 @@ export default function MaintenancePage() {
               }
             />
           ))}
-          <div className="flex items-center justify-between pt-2 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-sm">
             <span className="text-slate-600">
               Page {page} of {pages || 1}
             </span>

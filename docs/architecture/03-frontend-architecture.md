@@ -103,7 +103,8 @@ Bench-side technicians and managers require rapid equipment identification witho
 ---
 
 ## 4. UI/UX States & Design Principles
-- **Responsive Layout:** Adaptive desktop sidebar that collapses into a bottom navigation drawer on mobile viewports (< 768px).
+- **Responsive Layout:** The authenticated shell uses a desktop sidebar at widths of 1024px and above. At narrower widths, a keyboard-operable menu button opens the role-filtered navigation beneath the header. Main content and summary grids adapt to available width; data tables use keyboard-focusable horizontal scroll regions.
+- **Navigation & Accessibility:** The shell provides a skip link, visible keyboard focus, a current-page breadcrumb, and touch-sized controls. Navigation visibility follows the existing frontend role matrix; server-side authorization remains authoritative.
 - **Explicit Component States:** Every data-fetching view strictly handles four visual states:
   1. *Loading State:* Pulse skeleton loaders matching table dimensions.
   2. *Empty State:* Descriptive illustration with contextual call-to-action ("No assets registered in this laboratory yet").
@@ -119,3 +120,5 @@ The Stage 7 `/calibrations` page uses caller-selected due windows, role-aware ca
   - `DECOMMISSIONED`: Slate/gray (`bg-slate-100 text-slate-700`)
   - `CALIBRATION_OVERDUE`: Purple badge with alert triangle icon (computed flag, not a stored status)
 - **Client vs. Server Authorization:** `RoleGuard` improves navigation UX by hiding unauthorized routes, but it is **not** a security boundary. Every API request is independently authorized server-side; a user who manipulates client state still receives HTTP 403 from the API.
+
+The Stage 10 Phase 3 dashboard presents only existing report data: asset, work-order, calibration, critical-work-order, and due-calibration summaries. Availability and downtime remain marked pending where the API has no approved calculation. Recent-activity data and preventive-maintenance schedules are not represented because the current API does not provide them.

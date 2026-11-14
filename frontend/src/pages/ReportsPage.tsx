@@ -269,7 +269,12 @@ export default function ReportsPage() {
             {report.by_college.length === 0 ? (
               <p className="mt-3 text-sm text-slate-600">No work orders were reported in this period.</p>
             ) : (
-              <div className="mt-4 overflow-x-auto">
+              <div
+                className="table-scroll mt-4"
+                role="region"
+                aria-label="Maintenance activity by college"
+                tabIndex={0}
+              >
                 <table className="w-full text-left text-sm">
                   <thead className="border-b border-slate-200 text-slate-600">
                     <tr>
